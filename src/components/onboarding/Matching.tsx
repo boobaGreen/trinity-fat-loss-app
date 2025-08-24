@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase, matchingService } from "../../lib/supabase";
 import { UserMenu } from "../common/UserMenu";
+import * as NotificationHooks from "../../hooks/useNotifications";
 
 interface MatchingData {
   name: string;
@@ -157,6 +158,31 @@ const Matching: React.FC<MatchingProps> = ({ userData, onComplete }) => {
   );
   const [showResult, setShowResult] = useState(false);
 
+  // 🔔 Notification system
+  const notifications = NotificationHooks.useNotifications();
+
+  // 🚀 Trinity-specific initialization
+  const initializeTrinityNotifications = async () => {
+    if (notifications.needsPermission) {
+      const permission = await notifications.requestPermission();
+
+      if (permission === "granted") {
+        // Send welcome notification
+        await notifications.sendNotification(
+          "🎯 Trinity Notifications Enabled",
+          {
+            body: "You'll be notified when matches are found! 💪",
+            icon: "/trinity-logo.svg",
+          }
+        );
+      }
+
+      return permission;
+    }
+
+    return notifications.permission;
+  };
+
   useEffect(() => {
     // Start the real matching process
     const matchingPromise = performRealMatching(userData);
@@ -190,10 +216,30 @@ const Matching: React.FC<MatchingProps> = ({ userData, onComplete }) => {
     }, 150);
 
     // Handle matching result
-    matchingPromise.then((result) => {
+    matchingPromise.then(async (result) => {
       setMatchingResult(result);
       setShowResult(true);
       clearInterval(interval);
+
+      // 🔔 Send notification based on result
+      if (
+        result.state === "matched" &&
+        result.matches &&
+        result.matches.length > 0
+      ) {
+        const bestMatch = result.matches[0];
+        await notifications.sendMatchNotification({
+          partnerName: bestMatch.name,
+          matchType: "perfect match",
+        });
+      } else if (result.state === "queued") {
+        await notifications.sendQueueNotification(
+          result.queue_position || 1,
+          result.estimated_wait_hours
+            ? `${result.estimated_wait_hours}h`
+            : undefined
+        );
+      }
 
       // Auto-complete for successful match
       if (result.state === "matched") {
@@ -206,7 +252,7 @@ const Matching: React.FC<MatchingProps> = ({ userData, onComplete }) => {
     return () => {
       clearInterval(interval);
     };
-  }, [userData, onComplete, currentPhase]);
+  }, [userData, onComplete, currentPhase, notifications]);
 
   const getPhaseMessage = () => {
     if (showResult) return "Match complete!";
@@ -366,12 +412,48 @@ const Matching: React.FC<MatchingProps> = ({ userData, onComplete }) => {
                 )}
             </div>
 
-            <button className="w-full py-4 px-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
+            <button
+              onClick={initializeTrinityNotifications}
+              disabled={
+                notifications.isLoading || notifications.canSendNotifications
+              }
+              className={`w-full py-4 px-6 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 ${
+                notifications.canSendNotifications
+                  ? "bg-gradient-to-r from-green-500 to-green-600 cursor-default"
+                  : notifications.isLoading
+                  ? "bg-gradient-to-r from-gray-400 to-gray-500 cursor-not-allowed"
+                  : "bg-gradient-to-r from-blue-500 to-purple-600"
+              }`}
+            >
               <span className="flex items-center justify-center">
-                <span className="text-2xl mr-3">🔔</span>
-                Enable Notifications
+                <span className="text-2xl mr-3">
+                  {notifications.canSendNotifications
+                    ? "✅"
+                    : notifications.isLoading
+                    ? "⏳"
+                    : "🔔"}
+                </span>
+                {notifications.canSendNotifications
+                  ? "Notifications Enabled"
+                  : notifications.isLoading
+                  ? "Setting up..."
+                  : "Enable Notifications"}
               </span>
             </button>
+
+            {/* 📱 Platform-specific notification info */}
+            <div className="mt-4 p-4 bg-blue-50 rounded-2xl border border-blue-200">
+              <p className="text-blue-700 text-sm text-center">
+                {notifications.platform === "mobile"
+                  ? "📱 Mobile push notifications will alert you instantly when matches are found"
+                  : "🌐 Browser notifications will keep you updated about your matching progress"}
+              </p>
+              {notifications.error && (
+                <p className="text-red-600 text-xs text-center mt-2">
+                  ⚠️ {notifications.error}
+                </p>
+              )}
+            </div>
           </div>
         );
 
