@@ -2,11 +2,16 @@ import React, { useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
 
 interface EmailAuthProps {
-  onSuccess: () => void;
+  onSuccess: (isSignUp: boolean) => void;
   onBack: () => void;
+  onForgotPassword?: () => void;
 }
 
-export const EmailAuth: React.FC<EmailAuthProps> = ({ onSuccess, onBack }) => {
+export const EmailAuth: React.FC<EmailAuthProps> = ({
+  onSuccess,
+  onBack,
+  onForgotPassword,
+}) => {
   const { signInWithEmail, signUpWithEmail, loading, error } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [formData, setFormData] = useState({
@@ -18,6 +23,26 @@ export const EmailAuth: React.FC<EmailAuthProps> = ({ onSuccess, onBack }) => {
   const [formLoading, setFormLoading] = useState(false);
 
   const isLoading = loading || formLoading;
+
+  // 🔒 Password validation function
+  const validatePassword = (password: string): string | null => {
+    if (password.length < 8) {
+      return "Password must be at least 8 characters long";
+    }
+    if (!/[a-z]/.test(password)) {
+      return "Password must contain at least one lowercase letter";
+    }
+    if (!/[A-Z]/.test(password)) {
+      return "Password must contain at least one uppercase letter";
+    }
+    if (!/\d/.test(password)) {
+      return "Password must contain at least one digit";
+    }
+    if (!/[^a-zA-Z0-9]/.test(password)) {
+      return "Password must contain at least one symbol (!@#$%^&*)";
+    }
+    return null;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,8 +56,9 @@ export const EmailAuth: React.FC<EmailAuthProps> = ({ onSuccess, onBack }) => {
           return;
         }
 
-        if (formData.password.length < 6) {
-          alert("Password must be at least 6 characters!");
+        const passwordError = validatePassword(formData.password);
+        if (passwordError) {
+          alert(passwordError);
           return;
         }
 
@@ -48,7 +74,7 @@ export const EmailAuth: React.FC<EmailAuthProps> = ({ onSuccess, onBack }) => {
           console.log(
             "✅ Signup successful! Check your email for verification."
           );
-          onSuccess();
+          onSuccess(true); // isSignUp = true
         }
       } else {
         // Sign In
@@ -58,7 +84,7 @@ export const EmailAuth: React.FC<EmailAuthProps> = ({ onSuccess, onBack }) => {
           console.error("Signin error:", result.error.message);
         } else {
           console.log("✅ Login successful!");
-          onSuccess();
+          onSuccess(false); // isSignUp = false
         }
       }
     } finally {
@@ -150,6 +176,62 @@ export const EmailAuth: React.FC<EmailAuthProps> = ({ onSuccess, onBack }) => {
               />
             </div>
 
+            {/* Password Requirements for Signup */}
+            {mode === "signup" && formData.password && (
+              <div className="bg-gray-50 rounded-xl p-4">
+                <h4 className="font-semibold text-gray-900 mb-2">
+                  Password Requirements:
+                </h4>
+                <ul className="text-sm space-y-1">
+                  <li
+                    className={
+                      formData.password.length >= 8
+                        ? "✅ text-green-600"
+                        : "• text-gray-600"
+                    }
+                  >
+                    At least 8 characters long
+                  </li>
+                  <li
+                    className={
+                      /[a-z]/.test(formData.password)
+                        ? "✅ text-green-600"
+                        : "• text-gray-600"
+                    }
+                  >
+                    One lowercase letter (a-z)
+                  </li>
+                  <li
+                    className={
+                      /[A-Z]/.test(formData.password)
+                        ? "✅ text-green-600"
+                        : "• text-gray-600"
+                    }
+                  >
+                    One uppercase letter (A-Z)
+                  </li>
+                  <li
+                    className={
+                      /\d/.test(formData.password)
+                        ? "✅ text-green-600"
+                        : "• text-gray-600"
+                    }
+                  >
+                    One digit (0-9)
+                  </li>
+                  <li
+                    className={
+                      /[^a-zA-Z0-9]/.test(formData.password)
+                        ? "✅ text-green-600"
+                        : "• text-gray-600"
+                    }
+                  >
+                    One symbol (!@#$%^&*)
+                  </li>
+                </ul>
+              </div>
+            )}
+
             {mode === "signup" && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -179,6 +261,19 @@ export const EmailAuth: React.FC<EmailAuthProps> = ({ onSuccess, onBack }) => {
                 : "Create Account"}
             </button>
           </form>
+
+          {/* Forgot Password Link (only for signin mode) */}
+          {mode === "signin" && onForgotPassword && (
+            <div className="text-center mt-4">
+              <button
+                onClick={onForgotPassword}
+                disabled={isLoading}
+                className="text-blue-600 hover:text-blue-700 text-sm disabled:opacity-50"
+              >
+                Forgot your password?
+              </button>
+            </div>
+          )}
 
           {/* Toggle Mode */}
           <div className="text-center mt-6">

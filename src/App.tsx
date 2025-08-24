@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { LandingPage } from "./pages/LandingPage";
 import { WelcomeScreen } from "./components/onboarding/WelcomeScreen";
 import { EmailAuth } from "./components/auth/EmailAuth";
+import { EmailVerification } from "./components/auth/EmailVerification";
+import { ForgotPassword } from "./components/auth/ForgotPassword";
+import { ResetPassword } from "./components/auth/ResetPassword";
 import { DataCollectionScreen } from "./components/onboarding/DataCollectionScreen";
 import { FitnessLevelScreen } from "./components/onboarding/FitnessLevelScreen";
 import { MatchingScreen } from "./components/onboarding/MatchingScreen";
@@ -12,6 +15,9 @@ type AppScreen =
   | "landing"
   | "welcome"
   | "email-auth"
+  | "email-verification"
+  | "forgot-password"
+  | "reset-password"
   | "data-collection"
   | "fitness-level"
   | "matching"
@@ -49,10 +55,28 @@ function App() {
   // 🔐 Hook per l'autenticazione
   const { user, loading } = useAuth();
 
+  // Check for password reset on page load
+  useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = hashParams.get("access_token");
+    const type = hashParams.get("type");
+
+    if (type === "recovery" && accessToken) {
+      setCurrentScreen("reset-password");
+    }
+  }, []);
+
   // 🎯 Listener per l'auth state - quando l'utente si autentica via OAuth
   useEffect(() => {
     if (user && !loading) {
       console.log("🔐 User authenticated:", user.email);
+
+      // Check if user needs email verification
+      if (user.email_confirmed_at === null) {
+        console.log("📧 User needs email verification");
+        setCurrentScreen("email-verification");
+        return;
+      }
 
       // Se l'utente è appena arrivato da OAuth e non ha completato l'onboarding
       if (currentScreen === "landing" || currentScreen === "welcome") {
@@ -135,13 +159,56 @@ function App() {
       case "email-auth":
         return (
           <EmailAuth
-            onSuccess={() =>
+            onSuccess={(isSignUp) => {
+              if (isSignUp) {
+                setCurrentScreen("email-verification");
+              } else {
+                handleOnboardingStep("data-collection", {
+                  loginMethod: "email",
+                  name: "Email User",
+                });
+              }
+            }}
+            onBack={() => setCurrentScreen("welcome")}
+            onForgotPassword={() => setCurrentScreen("forgot-password")}
+          />
+        );
+
+      case "email-verification":
+        return (
+          <EmailVerification
+            onContinue={() => {
               handleOnboardingStep("data-collection", {
                 loginMethod: "email",
-                name: "Email User", // Will be updated with real name later
-              })
-            }
-            onBack={() => setCurrentScreen("welcome")}
+                name: user?.email?.split("@")[0] || "Email User",
+              });
+            }}
+            onBack={() => setCurrentScreen("email-auth")}
+          />
+        );
+
+      case "forgot-password":
+        return (
+          <ForgotPassword
+            onSuccess={() => {
+              alert("Password reset email sent! Check your inbox.");
+              setCurrentScreen("email-auth");
+            }}
+            onBack={() => setCurrentScreen("email-auth")}
+          />
+        );
+
+      case "reset-password":
+        return (
+          <ResetPassword
+            onSuccess={() => {
+              alert("Password updated successfully! You can now sign in.");
+              setCurrentScreen("email-auth");
+            }}
+            onError={(error) => {
+              alert(error);
+              setCurrentScreen("forgot-password");
+            }}
           />
         );
 
