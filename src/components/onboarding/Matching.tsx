@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase, matchingService } from "../../lib/supabase";
+import { UserMenu } from "../common/UserMenu";
 
 interface MatchingData {
   name: string;
@@ -384,10 +385,18 @@ const Matching: React.FC<MatchingProps> = ({ userData, onComplete }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-rose-500 via-pink-600 to-orange-500 flex items-center justify-center p-4 animate-gradient">
+      {/* User Menu - Top Right */}
+      <div className="absolute top-4 right-4 z-20">
+        <UserMenu variant="dark" />
+      </div>
+
       <div className="w-full max-w-2xl">
-        <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 p-8 md:p-12">
-          <div className="text-center space-y-8">
+        <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8 md:p-12 relative overflow-hidden">
+          {/* Gradient overlay for depth */}
+          <div className="absolute inset-0 bg-gradient-to-br from-rose-50/20 via-pink-50/10 to-orange-50/20 rounded-3xl pointer-events-none"></div>
+
+          <div className="relative z-10 text-center space-y-8">
             {/* Conditional Rendering: Matching Process or Results */}
             {!showResult ? (
               <>
