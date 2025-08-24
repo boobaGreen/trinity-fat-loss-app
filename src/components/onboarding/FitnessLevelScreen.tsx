@@ -3,6 +3,12 @@ import React, { useState } from "react";
 interface FitnessLevelScreenProps {
   onNext: (fitnessLevel: string) => void;
   onBack: () => void;
+  userData?: {
+    // ✅ Aggiunta prop opzionale userData
+    age: number;
+    languages: string[];
+    weightGoal: string;
+  } | null;
 }
 
 const fitnessLevels = [

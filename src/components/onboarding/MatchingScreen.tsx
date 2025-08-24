@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 interface MatchingData {
+  name: string; // ✅ Aggiunta proprietà name
   goal: string;
   level: string;
   languages: string[];
@@ -10,11 +11,13 @@ interface MatchingData {
 interface MatchingScreenProps {
   userData: MatchingData;
   onComplete: () => void;
+  onBack?: () => void; // ✅ Aggiunta prop opzionale onBack
 }
 
 export const MatchingScreen: React.FC<MatchingScreenProps> = ({
   userData,
   onComplete,
+  onBack,
 }) => {
   const [progress, setProgress] = useState(0);
 
@@ -113,6 +116,18 @@ export const MatchingScreen: React.FC<MatchingScreenProps> = ({
               Browse Success Stories
             </button>
           </div>
+
+          {/* Back Button */}
+          {onBack && (
+            <div className="mt-6">
+              <button
+                onClick={onBack}
+                className="w-full trinity-button-secondary text-gray-600 border border-gray-300 hover:bg-gray-50"
+              >
+                ← Back to Fitness Level
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

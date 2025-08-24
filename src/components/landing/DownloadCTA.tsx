@@ -1,21 +1,14 @@
 import React from "react";
 
-export const DownloadCTA: React.FC = () => {
-  const handleDownloadClick = (platform: "ios" | "android" | "web") => {
-    const urls = {
-      ios: "https://apps.apple.com/app/trinity-fat-loss/id123456789",
-      android:
-        "https://play.google.com/store/apps/details?id=com.trinity.fatLoss",
-      web: "/onboarding", // Naviga direttamente all'onboarding
-    };
+// ✅ Interface per le props che il componente riceverà
+interface DownloadCTAProps {
+  onStartOnboarding: () => void;
+}
 
-    if (platform === "web") {
-      window.location.href = urls[platform];
-    } else {
-      window.open(urls[platform], "_blank");
-    }
-  };
-
+// ✅ Il componente ora riceve e usa la prop onStartOnboarding
+export const DownloadCTA: React.FC<DownloadCTAProps> = ({
+  onStartOnboarding,
+}) => {
   return (
     <section className="py-20 bg-gradient-to-br from-blue-600 to-purple-700 text-white">
       <div className="max-w-4xl mx-auto px-6 text-center">
@@ -28,34 +21,26 @@ export const DownloadCTA: React.FC = () => {
           Join thousands already transforming with trio accountability
         </p>
 
-        {/* Download Buttons */}
+        {/* Download Buttons - AGGIORNATI CON NAVIGAZIONE ✅ */}
         <div className="flex flex-col sm:flex-row gap-6 justify-center items-center mb-12">
-          {/* App Store Button */}
-          <button
-            onClick={() => handleDownloadClick("ios")}
-            className="app-store-button"
-          >
-            <div className="text-2xl">📱</div>
+          <button onClick={onStartOnboarding} className="app-store-button">
+            <div className="text-2xl">🚀</div>
             <div className="text-left">
-              <div className="text-xs opacity-75">Download on the</div>
-              <div className="text-lg font-semibold">App Store</div>
+              <div className="text-xs opacity-75">Inizia Subito</div>
+              <div className="text-lg font-semibold">Trinity Fat Loss</div>
             </div>
           </button>
 
-          {/* Google Play Button */}
-          <button
-            onClick={() => handleDownloadClick("android")}
-            className="app-store-button"
-          >
-            <div className="text-2xl">🤖</div>
+          <button onClick={onStartOnboarding} className="app-store-button">
+            <div className="text-2xl">💪</div>
             <div className="text-left">
-              <div className="text-xs opacity-75">Get it on</div>
-              <div className="text-lg font-semibold">Google Play</div>
+              <div className="text-xs opacity-75">Trova il Tuo</div>
+              <div className="text-lg font-semibold">Trio Perfetto</div>
             </div>
           </button>
         </div>
 
-        {/* Social Proof Stats */}
+        {/* Stats Grid */}
         <div className="stats-grid mb-8">
           <div className="stat-item">
             <div className="stat-number">12K+</div>
@@ -71,24 +56,27 @@ export const DownloadCTA: React.FC = () => {
           </div>
         </div>
 
-        {/* Web Alternative */}
-        <div className="border-t border-white border-opacity-20 pt-8">
-          <p className="text-lg mb-4 opacity-90">Or try our web version</p>
+        {/* Web Alternative - AGGIORNATO CON NAVIGAZIONE ✅ */}
+        <div className="border-t border-white border-opacity-20 pt-8 mb-8">
+          <p className="text-lg mb-4 opacity-90">
+            Or start your transformation journey now
+          </p>
           <button
-            onClick={() => handleDownloadClick("web")}
-            className="trinity-button-secondary bg-transparent border-2 border-white text-white hover:bg-white hover:text-blue-600"
+            onClick={onStartOnboarding}
+            className="trinity-button-secondary bg-transparent border-2 border-white text-white hover:bg-white hover:text-blue-600 text-xl px-12 py-4"
           >
-            🌐 Launch Web App
+            🌐 Inizia la Trasformazione Ora
           </button>
         </div>
 
-        {/* Final Call to Action */}
+        {/* Final Call to Action - AGGIORNATO */}
         <div className="mt-12">
           <p className="text-lg font-medium opacity-90">
-            ✨ Start your transformation journey today
+            ✨ Il tuo trio ti aspetta
           </p>
           <p className="text-sm opacity-75 mt-2">
-            Free to start • No commitments • Find your trio in 48h
+            Gratis per iniziare • Matching garantito in 48h • 70% di successo
+            scientifico
           </p>
         </div>
       </div>

@@ -1,6 +1,14 @@
 import React from "react";
 
-export const HeroSection: React.FC = () => {
+// ✅ Interface per le props che il componente riceverà
+interface HeroSectionProps {
+  onStartOnboarding: () => void;
+}
+
+// ✅ Il componente ora riceve e usa la prop onStartOnboarding
+export const HeroSection: React.FC<HeroSectionProps> = ({
+  onStartOnboarding,
+}) => {
   return (
     <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 text-white overflow-hidden">
       {/* Background decoration */}
@@ -43,7 +51,7 @@ export const HeroSection: React.FC = () => {
           </span>
         </h1>
 
-        {/* Tagline Semplificata - AGGIORNATA ✅ */}
+        {/* Tagline Semplificata */}
         <p className="text-xl md:text-2xl mb-8 opacity-90 font-medium max-w-4xl mx-auto leading-relaxed">
           Insieme è meglio: <strong>raggiungi i tuoi obiettivi</strong> con il
           supporto di due compagni.
@@ -90,22 +98,34 @@ export const HeroSection: React.FC = () => {
           </div>
         </div>
 
-        {/* Download Buttons */}
+        {/* Download Buttons - AGGIORNATI CON NAVIGAZIONE ✅ */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
-          <button className="trinity-button-primary text-lg px-8 py-4 min-w-[220px] bg-white text-blue-600 hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-2xl">
-            📱 Scarica iOS App
+          <button
+            onClick={onStartOnboarding}
+            className="trinity-button-primary text-lg px-8 py-4 min-w-[220px] bg-white text-blue-600 hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-2xl"
+          >
+            🚀 Inizia con Trinity
           </button>
-          <button className="trinity-button-primary text-lg px-8 py-4 min-w-[220px] bg-white text-blue-600 hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-2xl">
-            🤖 Scarica Android
+          <button
+            onClick={onStartOnboarding}
+            className="trinity-button-primary text-lg px-8 py-4 min-w-[220px] bg-white text-blue-600 hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-2xl"
+          >
+            💪 Trova il Tuo Trio
           </button>
-          <button className="trinity-button-secondary text-lg px-8 py-4 min-w-[220px] border-2 border-white text-white hover:bg-white hover:text-blue-600 transition-all duration-300">
-            🌐 Prova Web App
+          <button
+            onClick={onStartOnboarding}
+            className="trinity-button-secondary text-lg px-8 py-4 min-w-[220px] border-2 border-white text-white hover:bg-white hover:text-blue-600 transition-all duration-300"
+          >
+            🌐 Inizia Gratis
           </button>
         </div>
 
-        {/* Scientific CTA */}
+        {/* Scientific CTA - AGGIORNATO CON NAVIGAZIONE ✅ */}
         <div className="mb-8">
-          <button className="text-xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 text-gray-900 px-12 py-4 rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:scale-105">
+          <button
+            onClick={onStartOnboarding}
+            className="text-xl font-bold bg-gradient-to-r from-yellow-400 to-orange-500 text-gray-900 px-12 py-4 rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300 transform hover:scale-105"
+          >
             🧠 Unisciti al 70% che Raggiunge Davvero i Propri Obiettivi
           </button>
         </div>

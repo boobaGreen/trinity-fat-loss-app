@@ -1,7 +1,14 @@
-// src/components/landing/ScienceSection.tsx
 import React from "react";
 
-export const ScienceSection: React.FC = () => {
+// ✅ Interface per le props che il componente riceverà
+interface ScienceSectionProps {
+  onStartOnboarding: () => void;
+}
+
+// ✅ Il componente ora riceve e usa la prop onStartOnboarding
+export const ScienceSection: React.FC<ScienceSectionProps> = ({
+  onStartOnboarding,
+}) => {
   return (
     <section className="py-20 bg-gradient-to-br from-blue-50 to-purple-50">
       <div className="max-w-6xl mx-auto px-6">
@@ -144,7 +151,7 @@ export const ScienceSection: React.FC = () => {
         </div>
 
         {/* Failure vs Success */}
-        <div className="bg-gray-900 rounded-3xl p-8 md:p-12 text-white">
+        <div className="bg-gray-900 rounded-3xl p-8 md:p-12 text-white mb-16">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             <div>
               <h3 className="text-3xl font-bold mb-6">
@@ -152,7 +159,7 @@ export const ScienceSection: React.FC = () => {
               </h3>
               <div className="space-y-6">
                 <div className="flex items-center">
-                  <div className="bg-red-600 rounded-full w-12 h-12 flex items-center justify-content-center mr-4">
+                  <div className="bg-red-600 rounded-full w-12 h-12 flex items-center justify-center mr-4">
                     <span className="text-xl">😞</span>
                   </div>
                   <div>
@@ -191,7 +198,7 @@ export const ScienceSection: React.FC = () => {
         </div>
 
         {/* Additional Benefits */}
-        <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-16">
           <div className="text-center p-6 bg-white rounded-2xl shadow-lg">
             <div className="text-3xl mb-2">💪</div>
             <div className="text-2xl font-bold text-purple-600">3-5h</div>
@@ -223,14 +230,17 @@ export const ScienceSection: React.FC = () => {
           </div>
         </div>
 
-        {/* CTA */}
-        <div className="text-center mt-16">
+        {/* CTA - AGGIORNATO CON NAVIGAZIONE ✅ */}
+        <div className="text-center">
           <p className="text-lg text-gray-600 mb-6">
             <strong>L'unica fitness app</strong> con basi scientifiche così
             solide per l'accountability sociale
           </p>
-          <button className="trinity-button-primary text-xl px-12 py-4 mb-4">
-            🧠 Unisciti al 70% che Raggiunge Davvero i Propri Obiettivi
+          <button
+            onClick={onStartOnboarding}
+            className="trinity-button-primary text-xl px-12 py-4 mb-4"
+          >
+            🧠 Inizia la Tua Trasformazione Scientifica
           </button>
           <div className="text-sm text-gray-500">
             ✅ Gratis per iniziare • ✅ Trio garantito in 48h • ✅ Basato su 15+

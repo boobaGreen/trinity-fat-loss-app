@@ -1,48 +1,147 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { LandingPage } from "./pages/LandingPage";
 import { WelcomeScreen } from "./components/onboarding/WelcomeScreen";
+import { EmailAuth } from "./components/auth/EmailAuth";
 import { DataCollectionScreen } from "./components/onboarding/DataCollectionScreen";
 import { FitnessLevelScreen } from "./components/onboarding/FitnessLevelScreen";
 import { MatchingScreen } from "./components/onboarding/MatchingScreen";
+import { Dashboard } from "./components/dashboard/Dashboard";
+import { useAuth } from "./hooks/useAuth";
 
 type AppScreen =
   | "landing"
   | "welcome"
+  | "email-auth"
   | "data-collection"
   | "fitness-level"
   | "matching"
   | "dashboard";
 
+// ✅ Aggiunto tipo per i dati utente dal form
+interface UserData {
+  name: string;
+  age: number;
+  languages: string[];
+  weightGoal: string;
+}
+
+interface UserProgress {
+  name: string;
+  loginMethod: string;
+  userData: {
+    name: string;
+    age: number;
+    languages: string[];
+    weightGoal: string;
+  } | null;
+  fitnessLevel: string;
+}
+
 function App() {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>("landing");
-  const [userProgress, setUserProgress] = useState({
+  const [userProgress, setUserProgress] = useState<UserProgress>({
     name: "",
     loginMethod: "",
     userData: null,
     fitnessLevel: "",
   });
 
-  const handleOnboardingStep = (screen: AppScreen, data?: any) => {
+  // 🔐 Hook per l'autenticazione
+  const { user, loading } = useAuth();
+
+  // 🎯 Listener per l'auth state - quando l'utente si autentica via OAuth
+  useEffect(() => {
+    if (user && !loading) {
+      console.log("🔐 User authenticated:", user.email);
+
+      // Se l'utente è appena arrivato da OAuth e non ha completato l'onboarding
+      if (currentScreen === "landing" || currentScreen === "welcome") {
+        console.log("🚀 Redirecting to data collection after OAuth");
+
+        // Aggiorna il progresso con i dati dell'utente autenticato
+        setUserProgress((prev) => ({
+          ...prev,
+          name:
+            user.user_metadata?.full_name ||
+            user.email?.split("@")[0] ||
+            "Google User",
+          loginMethod: user.app_metadata?.provider || "google",
+        }));
+
+        // Naviga direttamente alla raccolta dati
+        setCurrentScreen("data-collection");
+      }
+    }
+  }, [user, loading, currentScreen]);
+
+  // 🎯 Handler per step dell'onboarding
+  const handleOnboardingStep = (
+    screen: AppScreen,
+    data?: Partial<UserProgress>
+  ) => {
     setCurrentScreen(screen);
     if (data) {
       setUserProgress((prev) => ({ ...prev, ...data }));
     }
   };
 
+  // 🎯 Handler per navigazione diretta all'onboarding (chiamato dai CTA della Landing)
+  const handleStartOnboarding = () => {
+    setCurrentScreen("welcome");
+  };
+
   const renderCurrentScreen = () => {
+    // 🔄 Loading screen durante l'autenticazione iniziale
+    if (loading) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+          <div className="text-center text-white">
+            <div className="animate-spin text-6xl mb-4">⚪</div>
+            <h2 className="text-2xl font-bold mb-2">Connecting...</h2>
+            <p className="text-lg opacity-90">
+              Setting up your Trinity experience
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     switch (currentScreen) {
       case "landing":
-        return <LandingPage />;
+        return <LandingPage onStartOnboarding={handleStartOnboarding} />;
 
       case "welcome":
         return (
           <WelcomeScreen
-            onNext={(method) =>
+            onNext={(method: string) => {
+              if (method === "email") {
+                setCurrentScreen("email-auth");
+              } else {
+                handleOnboardingStep("data-collection", {
+                  loginMethod: method,
+                  name:
+                    method === "google"
+                      ? "Google User"
+                      : method === "apple"
+                      ? "Apple User"
+                      : "User",
+                });
+              }
+            }}
+            onBack={() => setCurrentScreen("landing")}
+          />
+        );
+
+      case "email-auth":
+        return (
+          <EmailAuth
+            onSuccess={() =>
               handleOnboardingStep("data-collection", {
-                loginMethod: method,
-                name: "User",
+                loginMethod: "email",
+                name: "Email User", // Will be updated with real name later
               })
             }
+            onBack={() => setCurrentScreen("welcome")}
           />
         );
 
@@ -50,7 +149,7 @@ function App() {
         return (
           <DataCollectionScreen
             userName={userProgress.name}
-            onNext={(data) =>
+            onNext={(data: UserData) =>
               handleOnboardingStep("fitness-level", { userData: data })
             }
             onBack={() => setCurrentScreen("welcome")}
@@ -60,7 +159,8 @@ function App() {
       case "fitness-level":
         return (
           <FitnessLevelScreen
-            onNext={(level) =>
+            userData={userProgress.userData}
+            onNext={(level: string) =>
               handleOnboardingStep("matching", { fitnessLevel: level })
             }
             onBack={() => setCurrentScreen("data-collection")}
@@ -71,31 +171,41 @@ function App() {
         return (
           <MatchingScreen
             userData={{
+              name: userProgress.name,
               goal: userProgress.userData?.weightGoal || "10-15kg",
               level: userProgress.fitnessLevel,
               languages: userProgress.userData?.languages || ["English"],
               age: userProgress.userData?.age || 28,
             }}
-            onComplete={() => handleOnboardingStep("dashboard")}
+            onComplete={() => setCurrentScreen("dashboard")}
+            onBack={() => setCurrentScreen("fitness-level")}
           />
         );
 
       case "dashboard":
         return (
-          <div className="min-h-screen flex items-center justify-center bg-gray-100">
-            <div className="text-center">
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                🎉 Welcome to Trinity!
-              </h1>
-              <p className="text-gray-600">
-                Your trio matching is complete. Dashboard coming soon...
-              </p>
-            </div>
-          </div>
+          <Dashboard
+            userData={{
+              name: userProgress.name,
+              goal: userProgress.userData?.weightGoal || "10-15kg",
+              level: userProgress.fitnessLevel,
+              languages: userProgress.userData?.languages || ["English"],
+              age: userProgress.userData?.age || 28,
+            }}
+            onLogout={() => {
+              setCurrentScreen("landing");
+              setUserProgress({
+                name: "",
+                loginMethod: "",
+                userData: null,
+                fitnessLevel: "",
+              });
+            }}
+          />
         );
 
       default:
-        return <LandingPage />;
+        return <LandingPage onStartOnboarding={handleStartOnboarding} />;
     }
   };
 
@@ -104,38 +214,83 @@ function App() {
       {renderCurrentScreen()}
 
       {/* Development Navigation (remove in production) */}
-      <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 text-xs">
-        <button
-          onClick={() => setCurrentScreen("landing")}
-          className="block mb-1 text-blue-600"
-        >
-          Landing
-        </button>
-        <button
-          onClick={() => setCurrentScreen("welcome")}
-          className="block mb-1 text-blue-600"
-        >
-          Welcome
-        </button>
-        <button
-          onClick={() => setCurrentScreen("data-collection")}
-          className="block mb-1 text-blue-600"
-        >
-          Data
-        </button>
-        <button
-          onClick={() => setCurrentScreen("fitness-level")}
-          className="block mb-1 text-blue-600"
-        >
-          Fitness
-        </button>
-        <button
-          onClick={() => setCurrentScreen("matching")}
-          className="block text-blue-600"
-        >
-          Matching
-        </button>
-      </div>
+      {process.env.NODE_ENV === "development" && (
+        <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 text-xs z-50">
+          <div className="font-semibold mb-2 text-gray-700">
+            Dev Navigation:
+          </div>
+          <button
+            onClick={() => setCurrentScreen("landing")}
+            className={`block mb-1 px-2 py-1 rounded ${
+              currentScreen === "landing"
+                ? "bg-blue-100 text-blue-800"
+                : "text-blue-600 hover:bg-blue-50"
+            }`}
+          >
+            🏠 Landing
+          </button>
+          <button
+            onClick={() => setCurrentScreen("welcome")}
+            className={`block mb-1 px-2 py-1 rounded ${
+              currentScreen === "welcome"
+                ? "bg-blue-100 text-blue-800"
+                : "text-blue-600 hover:bg-blue-50"
+            }`}
+          >
+            👋 Welcome
+          </button>
+          <button
+            onClick={() => setCurrentScreen("email-auth")}
+            className={`block mb-1 px-2 py-1 rounded ${
+              currentScreen === "email-auth"
+                ? "bg-blue-100 text-blue-800"
+                : "text-blue-600 hover:bg-blue-50"
+            }`}
+          >
+            📧 Email Auth
+          </button>
+          <button
+            onClick={() => setCurrentScreen("data-collection")}
+            className={`block mb-1 px-2 py-1 rounded ${
+              currentScreen === "data-collection"
+                ? "bg-blue-100 text-blue-800"
+                : "text-blue-600 hover:bg-blue-50"
+            }`}
+          >
+            📊 Data
+          </button>
+          <button
+            onClick={() => setCurrentScreen("fitness-level")}
+            className={`block mb-1 px-2 py-1 rounded ${
+              currentScreen === "fitness-level"
+                ? "bg-blue-100 text-blue-800"
+                : "text-blue-600 hover:bg-blue-50"
+            }`}
+          >
+            💪 Fitness
+          </button>
+          <button
+            onClick={() => setCurrentScreen("matching")}
+            className={`block mb-1 px-2 py-1 rounded ${
+              currentScreen === "matching"
+                ? "bg-blue-100 text-blue-800"
+                : "text-blue-600 hover:bg-blue-50"
+            }`}
+          >
+            🔄 Matching
+          </button>
+          <button
+            onClick={() => setCurrentScreen("dashboard")}
+            className={`block px-2 py-1 rounded ${
+              currentScreen === "dashboard"
+                ? "bg-blue-100 text-blue-800"
+                : "text-blue-600 hover:bg-blue-50"
+            }`}
+          >
+            🏆 Dashboard
+          </button>
+        </div>
+      )}
     </div>
   );
 }
