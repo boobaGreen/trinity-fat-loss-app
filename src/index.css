@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* Trinity Fat Loss Design System v4 */
+@theme {
+  /* Brand Colors - OKLCH per colori vividi */
+  --color-trinity-primary: oklch(0.66 0.22 253.41);
+  --color-trinity-secondary: oklch(0.71 0.25 328.36);
+  --color-trinity-accent: oklch(0.7 0.15 158.87);
+  --color-trinity-dark: oklch(0.27 0.02 256.85);
+  --color-trinity-light: oklch(0.98 0.002 247.86);
+
+  /* Status Colors */
+  --color-success: oklch(0.7 0.15 158.87);
+  --color-warning: oklch(0.8 0.15 85.87);
+  --color-error: oklch(0.65 0.2 12.57);
+
+  /* Typography */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Poppins", ui-sans-serif, system-ui, sans-serif;
+
+  /* Mobile Spacing */
+  --spacing-touch: 44px;
+  --spacing-18: 4.5rem;
+  --spacing-22: 5.5rem;
+}
+
+/* Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: theme(--font-sans);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  @apply bg-trinity-light text-trinity-dark;
+  min-height: 100vh;
+}
+
+/* Custom Utilities */
+@utility trinity-gradient {
+  background: linear-gradient(
+    135deg,
+    theme(--color-trinity-primary) 0%,
+    theme(--color-trinity-secondary) 100%
+  );
+}
+
+@utility trinity-card {
+  @apply bg-white rounded-2xl shadow-lg border border-gray-100 p-6;
+}
+
+@utility trinity-button {
+  @apply px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300;
+  min-height: theme(--spacing-touch);
+}
+
+@utility trinity-input {
+  @apply w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-trinity-primary focus:ring-2 focus:ring-trinity-primary/20 transition-all;
+}
