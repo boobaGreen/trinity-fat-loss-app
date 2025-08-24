@@ -11,6 +11,7 @@ import { FitnessLevelScreen } from "./components/onboarding/FitnessLevelScreen";
 import { Dashboard } from "./components/dashboard/Dashboard";
 import { useAuth } from "./hooks/useAuth";
 import Matching from "./components/onboarding/Matching";
+import { supabase, matchingService } from "./lib/supabase";
 
 type AppScreen =
   | "landing"
@@ -53,8 +54,88 @@ function App() {
     fitnessLevel: "",
   });
 
+  // New state to track user status
+  const [userStatus, setUserStatus] = useState<{
+    hasProfile: boolean;
+    isInQueue: boolean;
+    isInTrio: boolean;
+    loading: boolean;
+  }>({
+    hasProfile: false,
+    isInQueue: false,
+    isInTrio: false,
+    loading: true,
+  });
+
   // 🔐 Hook per l'autenticazione
   const { user, loading } = useAuth();
+
+  // Check user status in database
+  const checkUserStatus = async (userId: string) => {
+    try {
+      // Check if user has complete profile
+      const { data: userProfile, error: profileError } = await supabase
+        .from("users")
+        .select(
+          "id, name, age, languages, weight_goal, fitness_level, matching_status"
+        )
+        .eq("id", userId)
+        .single();
+
+      if (profileError) {
+        console.log("User profile not found, needs onboarding");
+        setUserStatus({
+          hasProfile: false,
+          isInQueue: false,
+          isInTrio: false,
+          loading: false,
+        });
+        return;
+      }
+
+      // Check if user is in matching queue
+      let isInQueue = false;
+      try {
+        const position = await matchingService.getQueuePosition(userId);
+        isInQueue = position > 0;
+      } catch {
+        isInQueue = false;
+      }
+
+      // Check if user is in a trio (simplified check for now)
+      const isInTrio = userProfile.matching_status === "in_trio";
+
+      // Check if profile is complete
+      const hasCompleteProfile = !!(
+        userProfile.name &&
+        userProfile.age &&
+        userProfile.languages &&
+        userProfile.weight_goal &&
+        userProfile.fitness_level
+      );
+
+      setUserStatus({
+        hasProfile: hasCompleteProfile,
+        isInQueue,
+        isInTrio,
+        loading: false,
+      });
+
+      console.log("👤 User status:", {
+        hasProfile: hasCompleteProfile,
+        isInQueue,
+        isInTrio,
+      });
+    } catch (error) {
+      console.error("Error checking user status:", error);
+      setUserStatus({
+        hasProfile: false,
+        isInQueue: false,
+        isInTrio: false,
+        loading: false,
+      });
+    }
+  };
 
   // Check for password reset on page load
   useEffect(() => {
@@ -67,9 +148,9 @@ function App() {
     }
   }, []);
 
-  // 🎯 Listener per l'auth state - quando l'utente si autentica via OAuth
+  // 🎯 Smart routing based on user authentication and status
   useEffect(() => {
-    if (user && !loading) {
+    if (!loading && user) {
       console.log("🔐 User authenticated:", user.email);
 
       // Check if user needs email verification
@@ -79,25 +160,34 @@ function App() {
         return;
       }
 
-      // Se l'utente è appena arrivato da OAuth e non ha completato l'onboarding
-      if (currentScreen === "landing" || currentScreen === "welcome") {
-        console.log("🚀 Redirecting to data collection after OAuth");
+      // Check user status in database
+      checkUserStatus(user.id);
+    } else if (!loading && !user) {
+      // User not authenticated, go to landing
+      setCurrentScreen("landing");
+    }
+  }, [user, loading]);
 
-        // Aggiorna il progresso con i dati dell'utente autenticato
-        setUserProgress((prev) => ({
-          ...prev,
-          name:
-            user.user_metadata?.full_name ||
-            user.email?.split("@")[0] ||
-            "Google User",
-          loginMethod: user.app_metadata?.provider || "google",
-        }));
-
-        // Naviga direttamente alla raccolta dati
-        setCurrentScreen("data-collection");
+  // Route based on user status
+  useEffect(() => {
+    if (!userStatus.loading && user) {
+      if (userStatus.isInTrio) {
+        console.log("🎯 User has trio, going to dashboard");
+        setCurrentScreen("dashboard");
+      } else if (userStatus.isInQueue) {
+        console.log("🔍 User in matching queue, going to dashboard");
+        setCurrentScreen("dashboard");
+      } else if (userStatus.hasProfile) {
+        console.log("� User has profile but no trio, going to matching");
+        setCurrentScreen("matching");
+      } else {
+        console.log("🏠 User needs onboarding, showing landing page first");
+        // User doesn't have complete profile, show landing page first
+        // so they understand what Trinity is before starting onboarding
+        setCurrentScreen("landing");
       }
     }
-  }, [user, loading, currentScreen]);
+  }, [userStatus, user]);
 
   // 🎯 Handler per step dell'onboarding
   const handleOnboardingStep = (
@@ -112,7 +202,19 @@ function App() {
 
   // 🎯 Handler per navigazione diretta all'onboarding (chiamato dai CTA della Landing)
   const handleStartOnboarding = () => {
-    setCurrentScreen("welcome");
+    // If user is already authenticated but needs onboarding, prepare OAuth data
+    if (user) {
+      setUserProgress((prev) => ({
+        ...prev,
+        name:
+          user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
+        loginMethod: user.app_metadata?.provider || "google",
+      }));
+      setCurrentScreen("data-collection");
+    } else {
+      // User not authenticated, show welcome screen first
+      setCurrentScreen("welcome");
+    }
   };
 
   const renderCurrentScreen = () => {

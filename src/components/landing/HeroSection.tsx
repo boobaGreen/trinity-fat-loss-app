@@ -1,4 +1,5 @@
 import React from "react";
+import { UserMenu } from "../common/UserMenu";
 
 // ✅ Interface per le props che il componente riceverà
 interface HeroSectionProps {
@@ -11,6 +12,11 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 }) => {
   return (
     <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 text-white overflow-hidden">
+      {/* User Menu - Top Right */}
+      <div className="absolute top-4 right-4 z-20">
+        <UserMenu variant="dark" />
+      </div>
+
       {/* Background decoration */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-20 left-10 w-32 h-32 bg-white rounded-full animate-pulse" />

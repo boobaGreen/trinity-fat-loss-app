@@ -110,9 +110,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100">
       {/* Header */}
-      <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+      <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-xl">
         <div className="px-6 py-8">
           <div className="flex justify-between items-start mb-6">
             <div>
@@ -182,20 +182,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
       {/* Main Content */}
       <div className="px-6 py-6 space-y-6">
         {/* Progress Summary */}
-        <div className="bg-white rounded-xl p-6 shadow-sm">
+        <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">
               ⭐ Today's Progress: {mockData.completedTasks}/
               {mockData.totalTasks}
             </h3>
-            <span className="text-2xl">✨</span>
+            <span className="text-2xl animate-pulse">✨</span>
           </div>
 
           {/* Progress Bar */}
           <div className="mb-6">
             <div className="bg-gray-200 rounded-full h-3 mb-2">
               <div
-                className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500"
+                className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500 shadow-md"
                 style={{ width: `${mockData.completionPercentage}%` }}
               />
             </div>
@@ -206,16 +206,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
         </div>
 
         {/* Daily Tasks */}
-        <div className="bg-white rounded-xl p-6 shadow-sm">
+        <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
           <h3 className="text-lg font-semibold mb-4">📋 Daily Tasks</h3>
           <div className="space-y-3">
             {mockData.tasks.map((task, index) => (
               <div key={index} className="flex items-center space-x-3">
                 <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-sm ${
+                  className={`w-6 h-6 rounded-full flex items-center justify-center text-sm shadow-sm ${
                     task.completed
-                      ? "bg-green-500 text-white"
-                      : "bg-gray-200 text-gray-400"
+                      ? "bg-gradient-to-br from-green-400 to-green-500 text-white"
+                      : "bg-gray-200/80 text-gray-400"
                   }`}
                 >
                   {task.completed ? "✅" : "❌"}
@@ -236,12 +236,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
         </div>
 
         {/* Trio Chat Preview */}
-        <div className="bg-white rounded-xl p-6 shadow-sm">
+        <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
           <h3 className="text-lg font-semibold mb-4">💬 Trio Chat Preview</h3>
           <div className="space-y-3">
             {mockData.chatMessages.map((msg, index) => (
               <div key={index} className="flex items-start space-x-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-sm font-medium">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-sm font-medium text-white shadow-md">
                   {msg.sender.charAt(0)}
                 </div>
                 <div className="flex-1">
@@ -254,13 +254,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
               </div>
             ))}
           </div>
-          <button className="w-full mt-4 bg-blue-50 text-blue-600 py-2 rounded-lg hover:bg-blue-100 transition-colors">
+          <button className="w-full mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-600 py-2 rounded-lg hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 border border-blue-200/50 shadow-sm">
             Open Chat →
           </button>
         </div>
 
         {/* Next Video Call */}
-        <div className="bg-white rounded-xl p-6 shadow-sm">
+        <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
           <h3 className="text-lg font-semibold mb-4">📹 Next Video Call</h3>
           <div className="flex items-center justify-between">
             <div>
@@ -268,44 +268,51 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
                 {mockData.nextCall.date} {mockData.nextCall.time}
               </p>
               <p className="text-sm text-gray-500">
-                {mockData.nextCall.confirmed ? "Confirmed" : "Not confirmed"}
+                {mockData.nextCall.confirmed
+                  ? "✅ Confirmed"
+                  : "⏳ Not confirmed"}
               </p>
             </div>
-            <button className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+            <button className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-md">
               Confirm Availability
             </button>
           </div>
         </div>
 
         {/* Recent Achievement */}
-        <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-xl p-6">
-          <h3 className="text-lg font-semibold mb-2">🏆 Recent Achievement</h3>
-          <div className="flex items-center space-x-3">
-            <span className="text-3xl">🔥</span>
-            <div>
-              <p className="font-medium">
-                {mockData.achievement.name} Unlocked!
-              </p>
-              <p className="text-yellow-100 text-sm">
-                {mockData.achievement.description}
-              </p>
+        <div className="bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 text-white rounded-xl p-6 shadow-lg border border-white/20 relative overflow-hidden">
+          <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+          <div className="relative z-10">
+            <h3 className="text-lg font-semibold mb-2">
+              🏆 Recent Achievement
+            </h3>
+            <div className="flex items-center space-x-3">
+              <span className="text-3xl animate-bounce">🔥</span>
+              <div>
+                <p className="font-medium">
+                  {mockData.achievement.name} Unlocked!
+                </p>
+                <p className="text-yellow-100 text-sm">
+                  {mockData.achievement.description}
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="space-y-4">
-          <button className="w-full bg-blue-600 text-white py-4 rounded-xl font-semibold hover:bg-blue-700 transition-colors">
+          <button className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 rounded-xl font-semibold hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-lg backdrop-blur-sm border border-white/20">
             📊 View Full Progress
           </button>
-          <button className="w-full bg-purple-600 text-white py-4 rounded-xl font-semibold hover:bg-purple-700 transition-colors">
+          <button className="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white py-4 rounded-xl font-semibold hover:from-purple-600 hover:to-pink-700 transition-all duration-200 shadow-lg backdrop-blur-sm border border-white/20">
             ✏️ Complete Missing Tasks
           </button>
         </div>
 
         {/* User Info Summary (for testing) */}
-        <div className="bg-gray-100 rounded-xl p-4 text-sm text-gray-600">
-          <h4 className="font-medium mb-2">User Summary:</h4>
+        <div className="bg-white/70 backdrop-blur-sm rounded-xl p-4 text-sm text-gray-700 shadow-md border border-white/30">
+          <h4 className="font-medium mb-2 text-gray-800">User Summary:</h4>
           <div>👤 Name: {userData.name}</div>
           <div>🎯 Goal: {userData.goal}</div>
           <div>💪 Level: {userData.level}</div>

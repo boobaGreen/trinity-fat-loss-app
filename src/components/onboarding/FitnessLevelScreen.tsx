@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { UserMenu } from "../common/UserMenu";
 
 interface FitnessLevelScreenProps {
   onNext: (fitnessLevel: string) => void;
@@ -46,6 +47,11 @@ export const FitnessLevelScreen: React.FC<FitnessLevelScreenProps> = ({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-rose-500 flex items-center justify-center p-4 animate-gradient">
+      {/* User Menu - Top Right */}
+      <div className="absolute top-4 right-4 z-20">
+        <UserMenu variant="dark" />
+      </div>
+
       <div className="max-w-md w-full animate-fade-in-up">
         <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-8 relative overflow-hidden">
           {/* Gradient overlay */}
