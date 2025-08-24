@@ -10,9 +10,10 @@ export const UserMenu: React.FC<UserMenuProps> = ({
   variant = "light",
   className = "",
 }) => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, signInWithGoogleForceSelection } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
 
   if (!user) return null;
 
@@ -25,6 +26,24 @@ export const UserMenu: React.FC<UserMenuProps> = ({
       console.error("Logout error:", error);
     } finally {
       setIsLoggingOut(false);
+      setIsOpen(false);
+    }
+  };
+
+  const handleSwitchAccount = async () => {
+    setIsSwitching(true);
+    try {
+      // First sign out current user
+      await signOut();
+      // Small delay to ensure logout is complete
+      setTimeout(() => {
+        // Force Google account selection
+        signInWithGoogleForceSelection();
+      }, 500);
+    } catch (error) {
+      console.error("Switch account error:", error);
+    } finally {
+      setIsSwitching(false);
       setIsOpen(false);
     }
   };
@@ -116,9 +135,42 @@ export const UserMenu: React.FC<UserMenuProps> = ({
 
           {/* Menu Items */}
           <div className="p-2">
+            {/* Switch Account Button */}
+            <button
+              onClick={handleSwitchAccount}
+              disabled={isSwitching || isLoggingOut}
+              className={`
+                w-full flex items-center space-x-3 p-3 rounded-lg text-left transition-all duration-200 mb-1
+                ${
+                  isDark
+                    ? "hover:bg-blue-500/20 text-blue-300 hover:text-blue-200"
+                    : "hover:bg-blue-50 text-blue-600 hover:text-blue-700"
+                }
+                disabled:opacity-50 disabled:cursor-not-allowed
+              `}
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                />
+              </svg>
+              <span className="font-medium">
+                {isSwitching ? "Switching..." : "Switch Google Account"}
+              </span>
+            </button>
+
+            {/* Sign Out Button */}
             <button
               onClick={handleLogout}
-              disabled={isLoggingOut}
+              disabled={isLoggingOut || isSwitching}
               className={`
                 w-full flex items-center space-x-3 p-3 rounded-lg text-left transition-all duration-200
                 ${
@@ -152,8 +204,10 @@ export const UserMenu: React.FC<UserMenuProps> = ({
                 isDark ? "bg-white/5 text-gray-300" : "bg-gray-50 text-gray-500"
               }`}
             >
-              💡 This will let you choose a different Google account or sign in
-              method
+              💡 <strong>Switch Account:</strong> Choose a different Google
+              account
+              <br />
+              🚪 <strong>Sign Out:</strong> Completely log out from Trinity
             </div>
           </div>
         </div>

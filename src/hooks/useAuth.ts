@@ -101,6 +101,10 @@ export function useAuth() {
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/onboarding`,
+        queryParams: {
+          prompt: "select_account",
+          access_type: "offline",
+        },
       },
     });
 
@@ -142,11 +146,35 @@ export function useAuth() {
     return { error };
   };
 
+  // 🔄 Sign in with Google - Force Account Selection
+  const signInWithGoogleForceSelection = async () => {
+    setAuthState((prev) => ({ ...prev, loading: true, error: null }));
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/onboarding`,
+        queryParams: {
+          prompt: "select_account consent",
+          access_type: "offline",
+          include_granted_scopes: "true",
+        },
+      },
+    });
+
+    if (error) {
+      setAuthState((prev) => ({ ...prev, loading: false, error }));
+    }
+
+    return { data, error };
+  };
+
   return {
     ...authState,
     signInWithEmail,
     signUpWithEmail,
     signInWithGoogle,
+    signInWithGoogleForceSelection,
     signInWithApple,
     signOut,
   };
