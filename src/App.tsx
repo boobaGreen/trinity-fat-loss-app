@@ -246,7 +246,6 @@ function App() {
               age: userProgress.userData?.age || 28,
             }}
             onComplete={() => setCurrentScreen("dashboard")}
-            onBack={() => setCurrentScreen("fitness-level")}
           />
         );
 

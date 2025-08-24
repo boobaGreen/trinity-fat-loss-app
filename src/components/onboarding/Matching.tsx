@@ -12,7 +12,6 @@ interface MatchingData {
 interface MatchingProps {
   userData: MatchingData;
   onComplete: () => void;
-  onBack?: () => void;
 }
 
 interface MatchingResult {
@@ -147,11 +146,7 @@ const performRealMatching = async (
   }
 };
 
-const Matching: React.FC<MatchingProps> = ({
-  userData,
-  onComplete,
-  onBack,
-}) => {
+const Matching: React.FC<MatchingProps> = ({ userData, onComplete }) => {
   const [searchProgress, setSearchProgress] = useState(0);
   const [currentPhase, setCurrentPhase] = useState<
     "searching" | "analyzing" | "finalizing"
@@ -506,17 +501,19 @@ const Matching: React.FC<MatchingProps> = ({
               <div className="animate-fade-in">{getResultContent()}</div>
             )}
 
-            {/* Back Button */}
-            {onBack && (
-              <div className="animate-fade-in animation-delay-1000">
-                <button
-                  onClick={onBack}
-                  className="w-full py-3 px-6 text-gray-600 border-2 border-gray-300 rounded-2xl hover:bg-gray-50 hover:border-gray-400 hover:scale-102 active:scale-98 transition-all duration-200 font-medium"
-                >
-                  ← Back to Fitness Level
-                </button>
-              </div>
-            )}
+            {/* Go to Dashboard Button - only show when matching is complete or queued */}
+            {matchingResult &&
+              (matchingResult.state === "matched" ||
+                matchingResult.state === "queued") && (
+                <div className="animate-fade-in animation-delay-1000">
+                  <button
+                    onClick={onComplete}
+                    className="w-full py-4 px-8 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl hover:from-amber-600 hover:to-orange-600 hover:scale-102 active:scale-98 transition-all duration-200 font-bold text-lg shadow-lg"
+                  >
+                    Continue to Dashboard →
+                  </button>
+                </div>
+              )}
           </div>
         </div>
       </div>

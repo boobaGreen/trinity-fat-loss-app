@@ -132,8 +132,8 @@ export const matchingService = {
     if (!entries || entries.length <= 1) return; // No duplicates to clean
 
     // Keep the first (newest) entry, delete the rest
-    const entriesToDelete = entries.slice(1).map(entry => entry.id);
-    
+    const entriesToDelete = entries.slice(1).map((entry) => entry.id);
+
     if (entriesToDelete.length > 0) {
       const { error: deleteError } = await supabase
         .from("matching_queue")
@@ -141,7 +141,9 @@ export const matchingService = {
         .in("id", entriesToDelete);
 
       if (deleteError) throw deleteError;
-      console.log(`🧹 Cleaned ${entriesToDelete.length} duplicate queue entries`);
+      console.log(
+        `🧹 Cleaned ${entriesToDelete.length} duplicate queue entries`
+      );
     }
   },
 
@@ -210,6 +212,18 @@ export const matchingService = {
       .eq("id", userId);
 
     if (error) throw error;
+  },
+
+  // Remove user from matching queue
+  async removeFromQueue(userId: string): Promise<void> {
+    const { error } = await supabase
+      .from("matching_queue")
+      .delete()
+      .eq("user_id", userId)
+      .eq("status", "active");
+
+    if (error) throw error;
+    console.log("🗑️ User removed from matching queue");
   },
 
   // Update queue wait time (called by cron job every 30 min)

@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
+import { matchingService } from "../../lib/supabase";
 
 interface DashboardProps {
   userData: {
@@ -14,6 +15,49 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
   const { user, signOut } = useAuth();
+  const [matchingStatus, setMatchingStatus] = useState<{
+    isInQueue: boolean;
+    position?: number;
+    loading: boolean;
+  }>({ isInQueue: false, loading: true });
+
+  // Check matching status on component load
+  useEffect(() => {
+    const checkStatus = async () => {
+      if (!user) return;
+
+      try {
+        // Check if user is in matching queue
+        const position = await matchingService.getQueuePosition(user.id);
+        setMatchingStatus({
+          isInQueue: position > 0,
+          position: position > 0 ? position : undefined,
+          loading: false,
+        });
+      } catch (error) {
+        console.log("User not in matching queue:", error);
+        setMatchingStatus({ isInQueue: false, loading: false });
+      }
+    };
+
+    checkStatus();
+  }, [user]);
+
+  const cancelMatching = async () => {
+    if (!user) return;
+
+    try {
+      // Remove from matching queue completely
+      await matchingService.removeFromQueue(user.id);
+      // Update user matching status
+      await matchingService.updateMatchingStatus(user.id, "available");
+      // Update UI state
+      setMatchingStatus({ isInQueue: false, loading: false });
+      console.log("✅ Successfully cancelled matching");
+    } catch (error) {
+      console.error("Error cancelling matching:", error);
+    }
+  };
 
   const handleLogout = async () => {
     await signOut();
@@ -92,6 +136,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
               </button>
             </div>
           </div>
+
+          {/* Matching Status */}
+          {!matchingStatus.loading && matchingStatus.isInQueue && (
+            <div className="bg-amber-500/20 backdrop-blur-sm rounded-xl p-4 mb-4 border border-amber-400/30">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-white mb-1">
+                    🔍 Looking for your Trinity partners
+                  </h3>
+                  <p className="text-amber-100 text-sm">
+                    {matchingStatus.position && matchingStatus.position > 1
+                      ? `Position ${matchingStatus.position} in queue`
+                      : "Searching for compatible matches..."}
+                  </p>
+                </div>
+                <button
+                  onClick={cancelMatching}
+                  className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm transition-colors duration-200"
+                >
+                  Cancel Search
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Trio Overview */}
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
