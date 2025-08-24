@@ -160,28 +160,6 @@ const Matching: React.FC<MatchingProps> = ({ userData, onComplete }) => {
   // Stato locale per toggle notification
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
-  // 🚀 Trinity-specific initialization
-  const initializeTrinityNotifications = async () => {
-    if (notifications.needsPermission) {
-      const permission = await notifications.requestPermission();
-
-      if (permission === "granted") {
-        // Send welcome notification
-        await notifications.sendNotification(
-          "🎯 Trinity Notifications Enabled",
-          {
-            body: "You'll be notified when matches are found! 💪",
-            icon: "/trinity-logo.svg",
-          }
-        );
-      }
-
-      return permission;
-    }
-
-    return notifications.permission;
-  };
-
   useEffect(() => {
     // Start the real matching process
     const matchingPromise = performRealMatching(userData);
@@ -220,25 +198,10 @@ const Matching: React.FC<MatchingProps> = ({ userData, onComplete }) => {
       setShowResult(true);
       clearInterval(interval);
 
-      // 🔔 Send notification based on result
-      if (
-        result.state === "matched" &&
-        result.matches &&
-        result.matches.length > 0
-      ) {
-        const bestMatch = result.matches[0];
-        await notifications.sendMatchNotification({
-          partnerName: bestMatch.name,
-          matchType: "perfect match",
-        });
-      } else if (result.state === "queued") {
-        await notifications.sendQueueNotification(
-          result.queue_position || 1,
-          result.estimated_wait_hours
-            ? `${result.estimated_wait_hours}h`
-            : undefined
-        );
-      }
+      // Handle matching result
+      setMatchingResult(result);
+      setShowResult(true);
+      clearInterval(interval);
 
       // Auto-complete for successful match
       if (result.state === "matched") {
