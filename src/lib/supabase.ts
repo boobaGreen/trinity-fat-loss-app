@@ -18,7 +18,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export interface UserProfile {
   id: string;
   email: string;
-  full_name: string;
+  name: string; // Changed from 'full_name' to 'name'
   age?: number;
   languages?: string[];
   weight_goal?: string;
@@ -57,3 +57,109 @@ export interface Notification {
   is_read: boolean;
   created_at: string;
 }
+
+// 🆕 Matching System Types (basati sul tuo schema database)
+export interface MatchingQueueEntry {
+  id: string;
+  user_id: string;
+  priority: number;
+  wait_time_hours: number;
+  status: "active" | "paused" | "matched";
+  flexible_age_range: boolean;
+  flexible_fitness_level: boolean;
+  flexible_goal: boolean;
+  preferred_times?: string[];
+  timezone_preference?: string;
+  waiting_notification_sent: boolean;
+  progress_notification_sent: boolean;
+  extended_wait_notification_sent: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// 🆕 Matching Service Functions
+export const matchingService = {
+  // Add user to matching queue
+  async addToQueue(userId: string): Promise<MatchingQueueEntry> {
+    const { data, error } = await supabase
+      .from("matching_queue")
+      .insert({
+        user_id: userId,
+        status: "active",
+        priority: 100,
+        wait_time_hours: 0,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  // Find compatible matches
+  async findMatches(userData: {
+    weight_goal: string;
+    fitness_level: string;
+    age: number;
+    languages: string[];
+    userId: string;
+  }): Promise<UserProfile[]> {
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("matching_status", "available")
+      .eq("weight_goal", userData.weight_goal)
+      .eq("fitness_level", userData.fitness_level)
+      .neq("id", userData.userId)
+      .gte("age", userData.age - 10) // ±10 years age range
+      .lte("age", userData.age + 10)
+      .overlaps("languages", userData.languages) // Common language
+      .limit(2);
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get queue position
+  async getQueuePosition(userId: string): Promise<number> {
+    const { count, error } = await supabase
+      .from("matching_queue")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "active")
+      .lt(
+        "created_at",
+        (
+          await supabase
+            .from("matching_queue")
+            .select("created_at")
+            .eq("user_id", userId)
+            .single()
+        ).data?.created_at || new Date().toISOString()
+      );
+
+    if (error) throw error;
+    return (count || 0) + 1;
+  },
+
+  // Update matching status
+  async updateMatchingStatus(
+    userId: string,
+    status: "available" | "matching" | "in_trio"
+  ): Promise<void> {
+    const { error } = await supabase
+      .from("users")
+      .update({
+        matching_status: status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
+
+    if (error) throw error;
+  },
+
+  // Update queue wait time (called by cron job every 30 min)
+  async updateWaitTimes(): Promise<void> {
+    const { error } = await supabase.rpc("update_queue_wait_times");
+    if (error) throw error;
+  },
+};

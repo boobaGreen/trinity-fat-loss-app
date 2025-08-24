@@ -7,9 +7,10 @@ import { ForgotPassword } from "./components/auth/ForgotPassword";
 import { ResetPassword } from "./components/auth/ResetPassword";
 import { DataCollectionScreen } from "./components/onboarding/DataCollectionScreen";
 import { FitnessLevelScreen } from "./components/onboarding/FitnessLevelScreen";
-import { MatchingScreen } from "./components/onboarding/MatchingScreen";
+
 import { Dashboard } from "./components/dashboard/Dashboard";
 import { useAuth } from "./hooks/useAuth";
+import Matching from "./components/onboarding/Matching";
 
 type AppScreen =
   | "landing"
@@ -236,7 +237,7 @@ function App() {
 
       case "matching":
         return (
-          <MatchingScreen
+          <Matching
             userData={{
               name: userProgress.name,
               goal: userProgress.userData?.weightGoal || "10-15kg",
