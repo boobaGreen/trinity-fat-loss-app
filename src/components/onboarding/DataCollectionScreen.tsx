@@ -46,12 +46,12 @@ export const DataCollectionScreen: React.FC<DataCollectionScreenProps> = ({
         <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-8 relative overflow-hidden">
           {/* Gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 rounded-3xl pointer-events-none"></div>
-          
+
           <div className="relative z-10">
             {/* Header */}
             <div className="flex items-center mb-8 animate-slide-in-left">
-              <button 
-                onClick={onBack} 
+              <button
+                onClick={onBack}
                 className="text-2xl hover:scale-110 transition-transform duration-200 p-2 rounded-full hover:bg-gray-100 active:scale-95"
               >
                 ←
@@ -60,7 +60,9 @@ export const DataCollectionScreen: React.FC<DataCollectionScreenProps> = ({
                 <div className="w-16 h-2 bg-gradient-to-r from-gray-200 to-gray-200 rounded-full mx-auto mb-2 relative overflow-hidden">
                   <div className="w-10 h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full animate-pulse"></div>
                 </div>
-                <span className="text-sm text-gray-500 font-medium">Step 2 of 3</span>
+                <span className="text-sm text-gray-500 font-medium">
+                  Step 2 of 3
+                </span>
               </div>
             </div>
 
@@ -70,7 +72,8 @@ export const DataCollectionScreen: React.FC<DataCollectionScreenProps> = ({
                 Welcome Claudio Dall'Ara! ✏️
               </h1>
               <p className="text-gray-600 text-lg leading-relaxed">
-                👋 Let's find your perfect<br />
+                👋 Let's find your perfect
+                <br />
                 <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-semibold">
                   transformation trio
                 </span>
@@ -117,10 +120,10 @@ export const DataCollectionScreen: React.FC<DataCollectionScreenProps> = ({
                     key={language.name}
                     className={`flex items-center space-x-4 cursor-pointer p-4 rounded-2xl border-2 transition-all duration-300 group animate-slide-in-right ${
                       formData.languages.includes(language.name)
-                        ? 'border-indigo-300 bg-indigo-50/70 shadow-md'
-                        : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30'
+                        ? "border-indigo-300 bg-indigo-50/70 shadow-md"
+                        : "border-gray-200 hover:border-indigo-300 hover:bg-indigo-50/30"
                     } hover:scale-102 active:scale-98`}
-                    style={{animationDelay: `${300 + index * 100}ms`}}
+                    style={{ animationDelay: `${300 + index * 100}ms` }}
                   >
                     <div className="relative">
                       <input
@@ -133,7 +136,7 @@ export const DataCollectionScreen: React.FC<DataCollectionScreenProps> = ({
                         <div className="absolute -top-1 -right-1 w-3 h-3 bg-indigo-600 rounded-full animate-ping"></div>
                       )}
                     </div>
-                    
+
                     <div className="w-10 h-7 rounded-lg overflow-hidden shadow-lg group-hover:scale-110 transition-transform duration-300">
                       {language.code === "GB" ? (
                         <div className="w-full h-full bg-blue-800 relative">
@@ -162,11 +165,11 @@ export const DataCollectionScreen: React.FC<DataCollectionScreenProps> = ({
                         </div>
                       )}
                     </div>
-                    
+
                     <span className="text-gray-700 font-medium text-lg group-hover:text-indigo-700 transition-colors duration-300 flex-1">
                       {language.name}
                     </span>
-                    
+
                     {formData.languages.includes(language.name) && (
                       <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center animate-bounce-in shadow-lg">
                         <span className="text-white text-sm font-bold">✓</span>
@@ -193,10 +196,10 @@ export const DataCollectionScreen: React.FC<DataCollectionScreenProps> = ({
                     key={goal.value}
                     className={`flex items-center cursor-pointer p-4 rounded-2xl border-2 transition-all duration-300 group animate-slide-in-left ${
                       formData.weightGoal === goal.value
-                        ? 'border-purple-300 bg-purple-50/70 shadow-md'
-                        : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50/30'
+                        ? "border-purple-300 bg-purple-50/70 shadow-md"
+                        : "border-gray-200 hover:border-purple-300 hover:bg-purple-50/30"
                     } hover:scale-102 active:scale-98`}
-                    style={{animationDelay: `${500 + index * 100}ms`}}
+                    style={{ animationDelay: `${500 + index * 100}ms` }}
                   >
                     <div className="relative mr-4">
                       <input
@@ -233,7 +236,9 @@ export const DataCollectionScreen: React.FC<DataCollectionScreenProps> = ({
             <div className="animate-fade-in-up animation-delay-800">
               <button
                 onClick={handleSubmit}
-                disabled={formData.languages.length === 0 || !formData.weightGoal}
+                disabled={
+                  formData.languages.length === 0 || !formData.weightGoal
+                }
                 className="w-full py-4 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed enabled:hover:scale-105 enabled:active:scale-95 transition-all duration-300 relative overflow-hidden group"
               >
                 <span className="relative z-10">Continue to Final Step</span>
