@@ -50,12 +50,12 @@ export const FitnessLevelScreen: React.FC<FitnessLevelScreenProps> = ({
         <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl p-8 relative overflow-hidden">
           {/* Gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-br from-purple-50/50 to-pink-50/50 rounded-3xl pointer-events-none"></div>
-          
+
           <div className="relative z-10">
             {/* Header */}
             <div className="flex items-center mb-8 animate-slide-in-left">
-              <button 
-                onClick={onBack} 
+              <button
+                onClick={onBack}
                 className="text-2xl hover:scale-110 transition-transform duration-200 p-2 rounded-full hover:bg-gray-100 active:scale-95"
               >
                 ←
@@ -64,14 +64,16 @@ export const FitnessLevelScreen: React.FC<FitnessLevelScreenProps> = ({
                 <div className="w-16 h-2 bg-gradient-to-r from-gray-200 to-gray-200 rounded-full mx-auto mb-2 relative overflow-hidden">
                   <div className="w-full h-full bg-gradient-to-r from-purple-500 to-pink-600 rounded-full animate-pulse"></div>
                 </div>
-                <span className="text-sm text-gray-500 font-medium">Final Step</span>
+                <span className="text-sm text-gray-500 font-medium">
+                  Final Step
+                </span>
               </div>
             </div>
 
             {/* Welcome Section */}
             <div className="text-center mb-8 animate-fade-in">
               <h1 className="text-2xl font-bold text-gray-800 mb-3">
-                Ready for transformation! 
+                Ready for transformation!
               </h1>
               <p className="text-gray-600 text-lg leading-relaxed flex items-center justify-center">
                 <span className="text-2xl mr-2 animate-bounce-subtle">🏆</span>
@@ -97,16 +99,20 @@ export const FitnessLevelScreen: React.FC<FitnessLevelScreenProps> = ({
                   onClick={() => setSelectedLevel(option.level)}
                   className={`w-full p-5 rounded-2xl border-2 text-left transition-all duration-300 group animate-slide-in-left hover:scale-102 active:scale-98 ${
                     selectedLevel === option.level
-                      ? 'border-purple-400 bg-purple-50/80 shadow-lg'
-                      : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50/30'
+                      ? "border-purple-400 bg-purple-50/80 shadow-lg"
+                      : "border-gray-200 hover:border-purple-300 hover:bg-purple-50/30"
                   }`}
-                  style={{animationDelay: `${200 + index * 150}ms`}}
+                  style={{ animationDelay: `${200 + index * 150}ms` }}
                 >
                   <div className="flex items-center space-x-4">
                     <div className="relative">
-                      <span className={`text-3xl transition-transform duration-300 inline-block ${
-                        selectedLevel === option.level ? 'animate-bounce-in scale-110' : 'group-hover:scale-110'
-                      }`}>
+                      <span
+                        className={`text-3xl transition-transform duration-300 inline-block ${
+                          selectedLevel === option.level
+                            ? "animate-bounce-in scale-110"
+                            : "group-hover:scale-110"
+                        }`}
+                      >
                         {option.emoji}
                       </span>
                       {selectedLevel === option.level && (
@@ -116,31 +122,35 @@ export const FitnessLevelScreen: React.FC<FitnessLevelScreenProps> = ({
                         </>
                       )}
                     </div>
-                    
+
                     <div className="flex-1">
-                      <h3 className={`font-bold text-xl transition-colors duration-300 ${
-                        selectedLevel === option.level 
-                          ? 'text-purple-700' 
-                          : 'text-gray-900 group-hover:text-purple-700'
-                      }`}>
+                      <h3
+                        className={`font-bold text-xl transition-colors duration-300 ${
+                          selectedLevel === option.level
+                            ? "text-purple-700"
+                            : "text-gray-900 group-hover:text-purple-700"
+                        }`}
+                      >
                         {option.title}
                       </h3>
-                      <p className={`text-sm transition-colors duration-300 ${
-                        selectedLevel === option.level 
-                          ? 'text-purple-600' 
-                          : 'text-gray-600 group-hover:text-purple-600'
-                      }`}>
+                      <p
+                        className={`text-sm transition-colors duration-300 ${
+                          selectedLevel === option.level
+                            ? "text-purple-600"
+                            : "text-gray-600 group-hover:text-purple-600"
+                        }`}
+                      >
                         {option.description}
                       </p>
                     </div>
-                    
+
                     {selectedLevel === option.level && (
                       <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-full flex items-center justify-center animate-bounce-in shadow-lg">
                         <span className="text-white text-sm font-bold">✓</span>
                       </div>
                     )}
                   </div>
-                  
+
                   {/* Selection glow effect */}
                   {selectedLevel === option.level && (
                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-400/20 to-pink-400/20 pointer-events-none animate-pulse"></div>
