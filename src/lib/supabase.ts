@@ -79,8 +79,29 @@ export interface MatchingQueueEntry {
 
 // 🆕 Matching Service Functions
 export const matchingService = {
-  // Add user to matching queue
+  // Add user to matching queue (prevent duplicates)
   async addToQueue(userId: string): Promise<MatchingQueueEntry> {
+    // First, clean any existing duplicate entries
+    await this.cleanDuplicateEntries(userId);
+
+    // Check if user is already in active queue
+    const { data: existing, error: existingError } = await supabase
+      .from("matching_queue")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (existingError) throw existingError;
+
+    // If user already exists in queue, return existing entry
+    if (existing && existing.length > 0) {
+      console.log("🔄 User already in queue, returning existing entry");
+      return existing[0];
+    }
+
+    // Create new queue entry
     const { data, error } = await supabase
       .from("matching_queue")
       .insert({
@@ -93,7 +114,35 @@ export const matchingService = {
       .single();
 
     if (error) throw error;
+    console.log("✅ New queue entry created");
     return data;
+  },
+
+  // Clean duplicate queue entries for a user (keep only the most recent)
+  async cleanDuplicateEntries(userId: string): Promise<void> {
+    // Get all entries for user, ordered by creation time (newest first)
+    const { data: entries, error: fetchError } = await supabase
+      .from("matching_queue")
+      .select("id, created_at")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .order("created_at", { ascending: false });
+
+    if (fetchError) throw fetchError;
+    if (!entries || entries.length <= 1) return; // No duplicates to clean
+
+    // Keep the first (newest) entry, delete the rest
+    const entriesToDelete = entries.slice(1).map(entry => entry.id);
+    
+    if (entriesToDelete.length > 0) {
+      const { error: deleteError } = await supabase
+        .from("matching_queue")
+        .delete()
+        .in("id", entriesToDelete);
+
+      if (deleteError) throw deleteError;
+      console.log(`🧹 Cleaned ${entriesToDelete.length} duplicate queue entries`);
+    }
   },
 
   // Find compatible matches
@@ -122,20 +171,26 @@ export const matchingService = {
 
   // Get queue position
   async getQueuePosition(userId: string): Promise<number> {
+    // First get user's creation time (use limit(1) instead of single() to handle duplicates)
+    const { data: userData, error: userError } = await supabase
+      .from("matching_queue")
+      .select("created_at")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (userError) throw userError;
+    if (!userData || userData.length === 0) return 0;
+
+    const userCreatedAt = userData[0].created_at;
+
+    // Then count users created before this user
     const { count, error } = await supabase
       .from("matching_queue")
       .select("*", { count: "exact", head: true })
       .eq("status", "active")
-      .lt(
-        "created_at",
-        (
-          await supabase
-            .from("matching_queue")
-            .select("created_at")
-            .eq("user_id", userId)
-            .single()
-        ).data?.created_at || new Date().toISOString()
-      );
+      .lt("created_at", userCreatedAt);
 
     if (error) throw error;
     return (count || 0) + 1;
