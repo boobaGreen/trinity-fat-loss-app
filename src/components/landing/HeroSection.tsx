@@ -21,8 +21,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       </div>
 
       <div className="relative z-10 max-w-5xl mx-auto px-6 text-center">
-        {/* Trinity Logo Visual */}
-        <div className="mb-8 flex justify-center items-center space-x-4 text-6xl">
+        {/* Trinity Logo Visual - Compatto su mobile */}
+        <div className="mb-4 md:mb-8 pt-4 md:pt-8 pb-2 md:pb-4 flex justify-center items-center space-x-2 md:space-x-4 text-4xl md:text-5xl lg:text-6xl">
           <span className="animate-bounce" style={{ animationDelay: "0s" }}>
             🏃‍♂️
           </span>
@@ -34,45 +34,66 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           </span>
         </div>
 
-        {/* Science Badge */}
-        <div className="mb-6 inline-flex items-center bg-white/20 backdrop-blur-sm rounded-full px-6 py-2 text-sm font-medium">
+        {/* Science Badge - Più compatto su mobile */}
+        <div className="mb-4 md:mb-6 inline-flex items-center bg-white/20 backdrop-blur-sm rounded-full px-3 md:px-6 py-1 md:py-2 text-xs md:text-sm font-medium">
           <span className="mr-2">🧠</span>
-          Basato su 15+ Studi Harvard • Stanford • Domini University
+          <span className="hidden sm:inline">
+            Basato su 15+ Studi Harvard • Stanford • Domini University
+          </span>
+          <span className="sm:hidden">Scienza-Based • 70% Successo</span>
         </div>
 
-        {/* Main Headline */}
-        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
-          Il Primo Sistema Fitness con
-          <span className="block mt-2 bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+        {/* Main Headline - Più compatto su mobile */}
+        <h1 className="text-2xl md:text-4xl lg:text-6xl xl:text-7xl font-bold mb-3 md:mb-6 leading-tight">
+          <span className="block">Il Primo Sistema Fitness con</span>
+          <span className="block mt-1 md:mt-2 bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent text-3xl md:text-5xl lg:text-6xl xl:text-7xl">
             70% di Successo
           </span>
-          <span className="block mt-2 text-3xl md:text-5xl lg:text-6xl">
+          <span className="block mt-1 md:mt-2 text-lg md:text-3xl lg:text-5xl xl:text-6xl">
             Garantito dalla Scienza
           </span>
         </h1>
 
-        {/* Tagline Semplificata */}
-        <p className="text-xl md:text-2xl mb-8 opacity-90 font-medium max-w-4xl mx-auto leading-relaxed">
-          Insieme è meglio: <strong>raggiungi i tuoi obiettivi</strong> con il
-          supporto di due compagni.
-          <span className="block mt-2 text-lg md:text-xl text-blue-200">
-            🔬 "Transform together. Three minds, one goal."
-          </span>
-        </p>
+        {/* CTA Principale Mobile-First - PRIORITARIO */}
+        <div className="mb-6 md:mb-8">
+          <button
+            onClick={onStartOnboarding}
+            className="text-lg md:text-xl font-bold bg-white text-blue-600 px-8 md:px-12 py-3 md:py-4 rounded-2xl shadow-2xl hover:shadow-3xl hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 w-full sm:w-auto"
+          >
+            🚀 Inizia la Tua Trasformazione
+          </button>
+          <p className="text-xs md:text-sm mt-2 opacity-90">
+            Gratis • Trio garantito in 48h
+          </p>
+        </div>
 
-        {/* Science Stats */}
-        <div className="mb-10 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto">
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
-            <div className="text-3xl font-bold text-yellow-400">70%</div>
-            <div className="text-sm">Più Successo vs Obiettivi Individuali</div>
+        {/* Tagline Compatta - solo su desktop */}
+        <div className="hidden md:block mb-6">
+          <p className="text-lg md:text-xl opacity-90 font-medium max-w-3xl mx-auto leading-relaxed">
+            Insieme è meglio: <strong>raggiungi i tuoi obiettivi</strong> con il
+            supporto di due compagni.
+          </p>
+        </div>
+
+        {/* Science Stats - Compatte su mobile */}
+        <div className="mb-6 md:mb-10 grid grid-cols-3 md:grid-cols-3 gap-2 md:gap-6 max-w-xs md:max-w-3xl mx-auto">
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg md:rounded-2xl p-2 md:p-4 border border-white/20">
+            <div className="text-lg md:text-3xl font-bold text-yellow-400">
+              70%
+            </div>
+            <div className="text-xs md:text-sm">Più Successo</div>
           </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
-            <div className="text-3xl font-bold text-green-400">46%</div>
-            <div className="text-sm">Maggior Mantenimento Risultati</div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg md:rounded-2xl p-2 md:p-4 border border-white/20">
+            <div className="text-lg md:text-3xl font-bold text-green-400">
+              46%
+            </div>
+            <div className="text-xs md:text-sm">Mantenimento</div>
           </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
-            <div className="text-3xl font-bold text-purple-400">95%</div>
-            <div className="text-sm">Fallisce Da Solo vs Trinity Success</div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg md:rounded-2xl p-2 md:p-4 border border-white/20">
+            <div className="text-lg md:text-3xl font-bold text-purple-400">
+              95%
+            </div>
+            <div className="text-xs md:text-sm">Trio Success</div>
           </div>
         </div>
 
@@ -98,23 +119,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           </div>
         </div>
 
-        {/* Download Buttons - AGGIORNATI CON NAVIGAZIONE ✅ */}
+        {/* Download Buttons - Solo 2 pulsanti principali */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8">
           <button
             onClick={onStartOnboarding}
-            className="trinity-button-primary text-lg px-8 py-4 min-w-[220px] bg-white text-blue-600 hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-2xl"
-          >
-            🚀 Inizia con Trinity
-          </button>
-          <button
-            onClick={onStartOnboarding}
-            className="trinity-button-primary text-lg px-8 py-4 min-w-[220px] bg-white text-blue-600 hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-2xl"
+            className="trinity-button-primary text-lg px-8 py-4 min-w-[220px] bg-blue-600 text-white hover:bg-blue-700 transition-all duration-300 transform hover:scale-105 shadow-2xl"
           >
             💪 Trova il Tuo Trio
           </button>
           <button
             onClick={onStartOnboarding}
-            className="trinity-button-secondary text-lg px-8 py-4 min-w-[220px] border-2 border-white text-white hover:bg-white hover:text-blue-600 transition-all duration-300"
+            className="trinity-button-primary text-lg px-8 py-4 min-w-[220px] bg-blue-600 text-white hover:bg-blue-700 transition-all duration-300 transform hover:scale-105 shadow-2xl"
           >
             🌐 Inizia Gratis
           </button>
@@ -148,13 +163,6 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             <span>🔬</span>
             <span>Metodo scientificamente provato</span>
           </div>
-        </div>
-      </div>
-
-      {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-        <div className="w-6 h-10 border-2 border-white rounded-full flex justify-center">
-          <div className="w-1 h-3 bg-white rounded-full mt-2"></div>
         </div>
       </div>
     </section>
