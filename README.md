@@ -1,69 +1,148 @@
-# React + TypeScript + Vite
+# Trinity Fat Loss - Fitness Social App 🏋️‍♀️
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Trinity Fat Loss è un'app innovativa di fitness sociale che connette persone con obiettivi simili in gruppi di 3 (Trinity) per supporto reciproco e motivazione nel percorso di perdita peso.
 
-Currently, two official plugins are available:
+## 🎯 Obiettivo dell'App
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### **Il Problema**
 
-## Expanding the ESLint configuration
+- La perdita peso è difficile da mantenere senza supporto sociale
+- Le app fitness tradizionali sono troppo impersonali
+- Manca accountability tra gli utenti
+- I coaching 1-on-1 sono costosi e non scalabili
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### **La Soluzione Trinity**
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+**Trinity Fat Loss** risolve questi problemi creando **gruppi di 3 persone** con:
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+- ✅ **Matching algoritmo intelligente** basato su obiettivi, età, livello fitness
+- ✅ **Supporto reciproco** attraverso chat di gruppo e videocall
+- ✅ **Accountability condivisa** con check-in giornalieri e settimanali
+- ✅ **Gamification** con badge, streak e competizioni amichevoli
+- ✅ **Costo accessibile** rispetto al coaching individuale
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 🏆 Funzionalità Principali
+
+### **Core Features**
+
+- 🔍 **Smart Matching**: Algoritmo che trova i 2 partner perfetti per ogni utente
+- 💬 **Chat Gruppo**: Comunicazione real-time tra i 3 membri del Trinity
+- 📹 **Video Call**: Sessioni di gruppo programmate per supporto face-to-face
+- 📊 **Progress Tracking**: Dashboard personalizzata con grafici e statistiche
+- ✅ **Check-in Sistema**: Daily e weekly tasks per mantenere l'accountability
+- 🏅 **Gamification**: Badge, achievements e streak per mantenere la motivazione
+
+### **Advanced Features**
+
+- 📱 **PWA + Android**: Disponibile come web app e app nativa Android
+- 🔔 **Smart Notifications**: Reminder personalizzati e notifiche di gruppo
+- 📅 **Calendario Integrato**: Scheduling automatico delle video call
+- 💰 **Freemium Model**: Versione gratuita + premium con features avanzate
+
+## 🛠️ Stack Tecnologico
+
+- **Frontend**: React + TypeScript + Vite
+- **Backend**: Supabase (Database + Auth + Real-time)
+- **Mobile**: Capacitor (PWA + Android nativo)
+- **Auth**: Email/Password + Google OAuth (Apple in roadmap)
+- **Styling**: TailwindCSS
+- **State Management**: React Hooks
+- **Monetization**: AdMob + Premium subscriptions
+
+## 🚀 Getting Started
+
+### **Prerequisites**
+
+- Node.js 18+
+- npm/yarn
+- Supabase account
+
+### **Installation**
+
+1. **Clone il repository**
+
+   ```bash
+   git clone https://github.com/boobaGreen/trinity-fat-loss-app.git
+   cd trinity-fat-loss-app/frontend-trinity-fat-loss
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   npm install
+   ```
+
+3. **Setup environment variables**
+
+   ```bash
+   cp .env.example .env.local
+   # Aggiungi le tue credenziali Supabase
+   ```
+
+4. **Start development server**
+
+   ```bash
+   npm run dev
+   ```
+
+5. **Build per production**
+   ```bash
+   npm run build
+   ```
+
+### **Android Build**
+
+```bash
+npm run build
+npx cap copy android
+npx cap open android
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 📱 Deployment
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- **PWA**: Netlify/Vercel per progressive web app
+- **Android**: Google Play Store con Capacitor
+- **iOS**: App Store (roadmap future)
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 🔧 Development
+
+### **Available Scripts**
+
+- `npm run dev` - Start development server
+- `npm run build` - Build per production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+- `npm run type-check` - TypeScript type checking
+
+### **Project Structure**
+
 ```
+src/
+├── components/     # React components
+├── pages/         # Main pages
+├── hooks/         # Custom React hooks
+├── lib/           # Utilities e Supabase client
+├── services/      # API services
+└── assets/        # Static assets
+```
+
+## 🤝 Contributing
+
+1. Fork il repository
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+## 📞 Contact
+
+- **Project Link**: [https://github.com/boobaGreen/trinity-fat-loss-app](https://github.com/boobaGreen/trinity-fat-loss-app)
+- **Roadmap**: Vedi `ROADMAP.md` per pianificazione dettagliata
+
+---
+
+**Made with ❤️ for the fitness community**
