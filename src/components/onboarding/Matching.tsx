@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase, matchingService } from "../../lib/supabase";
 import { UserMenu } from "../common/UserMenu";
-import * as NotificationHooks from "../../hooks/useNotifications";
 
 interface MatchingData {
   name: string;
@@ -158,8 +157,8 @@ const Matching: React.FC<MatchingProps> = ({ userData, onComplete }) => {
   );
   const [showResult, setShowResult] = useState(false);
 
-  // 🔔 Notification system
-  const notifications = NotificationHooks.useNotifications();
+  // Stato locale per toggle notification
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   // 🚀 Trinity-specific initialization
   const initializeTrinityNotifications = async () => {
@@ -252,7 +251,7 @@ const Matching: React.FC<MatchingProps> = ({ userData, onComplete }) => {
     return () => {
       clearInterval(interval);
     };
-  }, [userData, onComplete, currentPhase, notifications]);
+  }, [userData, onComplete, currentPhase]);
 
   const getPhaseMessage = () => {
     if (showResult) return "Match complete!";
@@ -413,30 +412,19 @@ const Matching: React.FC<MatchingProps> = ({ userData, onComplete }) => {
             </div>
 
             <button
-              onClick={initializeTrinityNotifications}
-              disabled={
-                notifications.isLoading || notifications.canSendNotifications
-              }
-              className={`w-full py-4 px-6 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 ${
-                notifications.canSendNotifications
-                  ? "bg-gradient-to-r from-green-500 to-green-600 cursor-default"
-                  : notifications.isLoading
-                  ? "bg-gradient-to-r from-gray-400 to-gray-500 cursor-not-allowed"
-                  : "bg-gradient-to-r from-blue-500 to-purple-600"
+              onClick={() => setNotificationsEnabled((prev) => !prev)}
+              className={`w-full py-4 px-6 font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 ${
+                notificationsEnabled
+                  ? "bg-gradient-to-r from-green-500 to-green-600 text-white"
+                  : "bg-gradient-to-r from-gray-400 to-gray-500 text-gray-800"
               }`}
             >
               <span className="flex items-center justify-center">
                 <span className="text-2xl mr-3">
-                  {notifications.canSendNotifications
-                    ? "✅"
-                    : notifications.isLoading
-                    ? "⏳"
-                    : "🔔"}
+                  {notificationsEnabled ? "✅" : "🔔"}
                 </span>
-                {notifications.canSendNotifications
+                {notificationsEnabled
                   ? "Notifications Enabled"
-                  : notifications.isLoading
-                  ? "Setting up..."
                   : "Enable Notifications"}
               </span>
             </button>
@@ -444,15 +432,9 @@ const Matching: React.FC<MatchingProps> = ({ userData, onComplete }) => {
             {/* 📱 Platform-specific notification info */}
             <div className="mt-4 p-4 bg-blue-50 rounded-2xl border border-blue-200">
               <p className="text-blue-700 text-sm text-center">
-                {notifications.platform === "mobile"
-                  ? "📱 Mobile push notifications will alert you instantly when matches are found"
-                  : "🌐 Browser notifications will keep you updated about your matching progress"}
+                📱 Notifications will keep you updated about your matching
+                progress
               </p>
-              {notifications.error && (
-                <p className="text-red-600 text-xs text-center mt-2">
-                  ⚠️ {notifications.error}
-                </p>
-              )}
             </div>
           </div>
         );
