@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { matchingService } from "../../lib/supabase";
+import { UserMenu } from "../common/UserMenu";
 
 interface DashboardProps {
   userData: {
@@ -16,10 +17,9 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({
   userData,
-  onLogout,
   onGoToMatching,
 }) => {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [matchingStatus, setMatchingStatus] = useState<{
     isInQueue: boolean;
     position?: number;
@@ -53,11 +53,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
     if (onGoToMatching) {
       onGoToMatching();
     }
-  };
-
-  const handleLogout = async () => {
-    await signOut();
-    if (onLogout) onLogout();
   };
 
   // Mock data per ora - poi verrà dal database
@@ -119,18 +114,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 Welcome to your Trinity dashboard
               </p>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                👤
-              </div>
-              <button
-                onClick={handleLogout}
-                className="text-white/80 hover:text-white"
-                title="Logout"
-              >
-                ⚙️
-              </button>
-            </div>
+            <UserMenu variant="dark" />
           </div>
 
           {/* Matching Status */}
