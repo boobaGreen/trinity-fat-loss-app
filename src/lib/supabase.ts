@@ -363,3 +363,173 @@ export const matchingService = {
     return { status: "queued", matches };
   },
 };
+
+// 🏠 Dashboard Service - Recupera lo stato reale dell'utente
+export const dashboardService = {
+  // Recupera lo stato completo dell'utente (trio, coda, o nessuno)
+  async getUserStatus(userId: string) {
+    try {
+      // 1. Prima controlla se l'utente è effettivamente in coda nella matching_queue
+      const { data: queueEntry, error: queueError } = await supabase
+        .from("matching_queue")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(); // Usa maybeSingle invece di single per gestire il caso di 0 risultati
+
+      if (queueError) throw queueError;
+
+      // Se l'utente è in coda attiva, restituisci lo stato coda
+      if (queueEntry) {
+        const queueData = await this.getUserQueueStatus(userId);
+        return {
+          status: "in_queue" as const,
+          queue: queueData,
+        };
+      }
+
+      // 2. Controlla se l'utente è in un trio attivo
+      const { data: userInTrio, error: trioError } = await supabase
+        .from("users")
+        .select("matching_status")
+        .eq("id", userId)
+        .single();
+
+      if (trioError) throw trioError;
+
+      if (userInTrio?.matching_status === "in_trio") {
+        // Recupera i dettagli del trio
+        const trioData = await this.getUserTrio(userId);
+        return {
+          status: "in_trio" as const,
+          trio: trioData,
+        };
+      }
+
+      // 3. Non è né in trio né in coda
+      return {
+        status: "no_group" as const,
+      };
+    } catch (error) {
+      console.error("Errore nel recupero stato utente:", error);
+      return {
+        status: "no_group" as const,
+      };
+    }
+  },
+
+  // Recupera i dettagli del trio dell'utente
+  async getUserTrio(userId: string) {
+    try {
+      // Prima recupera il trio
+      const { data: trio, error } = await supabase
+        .from("trios")
+        .select(
+          `
+          id,
+          user1_id,
+          user2_id,
+          user3_id,
+          weight_goal,
+          fitness_level,
+          common_language,
+          created_at
+        `
+        )
+        .or(`user1_id.eq.${userId},user2_id.eq.${userId},user3_id.eq.${userId}`)
+        .single();
+
+      if (error) throw error;
+
+      // Poi recupera i dettagli dei membri
+      const userIds = [trio.user1_id, trio.user2_id, trio.user3_id];
+      const { data: members, error: membersError } = await supabase
+        .from("users")
+        .select("id, name, age")
+        .in("id", userIds);
+
+      if (membersError) throw membersError;
+
+      return {
+        id: trio.id,
+        name: `Trinity ${trio.weight_goal} Group`, // Nome generato
+        goal: trio.weight_goal,
+        level: trio.fitness_level,
+        language: trio.common_language,
+        members: members || [],
+        createdAt: trio.created_at,
+        daysActive: Math.floor(
+          (new Date().getTime() - new Date(trio.created_at).getTime()) /
+            (1000 * 60 * 60 * 24)
+        ),
+      };
+    } catch (error) {
+      console.error("Errore nel recupero trio:", error);
+      return null;
+    }
+  },
+
+  // Recupera lo stato della coda dell'utente
+  async getUserQueueStatus(userId: string) {
+    try {
+      const position = await matchingService.getQueuePosition(userId);
+
+      // Recupera i dati dell'utente dalla tabella users
+      const { data: userData, error } = await supabase
+        .from("users")
+        .select("weight_goal, fitness_level")
+        .eq("id", userId)
+        .single();
+
+      if (error) throw error;
+
+      // Recupera la data di inserimento in coda
+      const { data: queueData, error: queueError } = await supabase
+        .from("matching_queue")
+        .select("created_at")
+        .eq("user_id", userId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (queueError) throw queueError;
+
+      return {
+        position,
+        goal: userData.weight_goal || "Unknown",
+        level: userData.fitness_level || "Unknown",
+        joinedAt: queueData.created_at,
+        estimatedWaitHours: Math.max(1, Math.floor(position * 12)), // Stima: 12h per posizione
+      };
+    } catch (error) {
+      console.error("Errore nel recupero stato coda:", error);
+      return null;
+    }
+  },
+
+  // Controlla se l'utente ha completato l'onboarding
+  async hasCompletedOnboarding(userId: string) {
+    try {
+      const { data: user, error } = await supabase
+        .from("users")
+        .select("name, age, weight_goal, fitness_level, languages")
+        .eq("id", userId)
+        .single();
+
+      if (error) return false;
+
+      return !!(
+        user?.name &&
+        user?.age &&
+        user?.weight_goal &&
+        user?.fitness_level &&
+        user?.languages?.length
+      );
+    } catch {
+      return false;
+    }
+  },
+};

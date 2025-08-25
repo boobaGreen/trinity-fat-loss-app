@@ -14,6 +14,7 @@ interface MatchingData {
 interface MatchingProps {
   userData: MatchingData;
   onComplete: () => void;
+  onModifyData?: () => void; // New callback for modifying data
   skipAnimations?: boolean;
   goToResults?: boolean;
 }
@@ -170,10 +171,20 @@ const performRealMatching = async (
 const Matching: React.FC<MatchingProps> = ({
   userData,
   onComplete,
+  onModifyData,
   skipAnimations = false,
   goToResults = false,
 }) => {
   const { user } = useAuth();
+
+  // DEBUG: Log per vedere cosa riceve il componente
+  console.log("🎯 Matching component props:", {
+    userData,
+    skipAnimations,
+    goToResults,
+    user: user?.email,
+  });
+
   const [searchProgress, setSearchProgress] = useState(
     skipAnimations ? 100 : 0
   );
@@ -183,10 +194,28 @@ const Matching: React.FC<MatchingProps> = ({
   const [matchingResult, setMatchingResult] = useState<MatchingResult | null>(
     null
   );
-  const [showResult, setShowResult] = useState(goToResults);
+  const [showResult, setShowResult] = useState(false); // Inizia sempre false, sarà impostato a true solo se necessario
+  const [hasStartedMatching, setHasStartedMatching] = useState(
+    // Auto-start solo se vengo dall'onboarding (goToResults=false)
+    // Sempre mostrare schermata scelta se vengo dalla dashboard (goToResults=true)
+    !goToResults
+  );
 
   // Stato locale per toggle notification
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+
+  // Track if user chose to start matching from choice screen (to show animations)
+  const [userChoseToStartMatching, setUserChoseToStartMatching] =
+    useState(false);
+
+  // Function to start matching process
+  const startMatching = () => {
+    setHasStartedMatching(true);
+    setUserChoseToStartMatching(true); // User actively chose to start matching
+    setSearchProgress(0); // Reset progress to show animation from start
+    setCurrentPhase("searching"); // Reset phase
+    setShowResult(false); // Hide any previous results
+  };
 
   // Function to cancel matching and leave queue
   const cancelMatching = async () => {
@@ -197,97 +226,164 @@ const Matching: React.FC<MatchingProps> = ({
       await matchingService.removeFromQueue(user.id);
       // Update user matching status
       await matchingService.updateMatchingStatus(user.id, "available");
-      // Update UI state - show success message
-      setMatchingResult({
-        state: "searching",
-        matches: [],
-      });
-      setShowResult(true);
       console.log("✅ Successfully cancelled matching");
+
+      // Navigate back to dashboard after successful cancellation
+      if (onComplete) {
+        onComplete();
+      }
     } catch (error) {
       console.error("Error cancelling matching:", error);
     }
   };
 
+  // Check if user is already in queue when coming from dashboard
   useEffect(() => {
-    // If goToResults is true, skip animations and show current queue status
-    if (goToResults) {
-      // Get current queue status directly
-      const getCurrentStatus = async () => {
-        if (!user) return;
+    const checkQueueStatus = async () => {
+      if (!user || !goToResults) return;
 
-        try {
-          const position = await matchingService.getQueuePosition(user.id);
-          if (position > 0) {
-            setMatchingResult({
-              state: "queued",
-              queue_position: position,
-              estimated_wait_hours: 24 + Math.floor(Math.random() * 48),
-              flexible_criteria: ["schedule_flexibility", "age_range"],
-            });
-            setShowResult(true);
-          }
-        } catch (error) {
-          console.error("Error getting queue status:", error);
+      try {
+        const position = await matchingService.getQueuePosition(user.id);
+        if (position > 0) {
+          // User is already in queue, skip choice screen and show queue status
+          setHasStartedMatching(true);
+          setMatchingResult({
+            state: "queued",
+            queue_position: position,
+            estimated_wait_hours: 24 + Math.floor(Math.random() * 48),
+            flexible_criteria: ["schedule_flexibility", "age_range"],
+          });
+          setShowResult(true);
         }
-      };
-
-      getCurrentStatus();
-      return; // Skip normal matching process
-    }
-
-    // Normal matching process
-    const matchingPromise = performRealMatching(userData);
-
-    // Skip animations if requested
-    if (skipAnimations) {
-      setSearchProgress(100);
-      matchingPromise.then(async (result) => {
-        setMatchingResult(result);
-        setShowResult(true);
-      });
-      return;
-    }
-
-    // Animate search progress
-    const interval = setInterval(() => {
-      setSearchProgress((prev) => {
-        if (prev < 100) {
-          // Dynamic progress speed based on phase
-          const increment =
-            currentPhase === "searching"
-              ? 1.5
-              : currentPhase === "analyzing"
-              ? 0.8
-              : 2.0;
-
-          const newProgress = Math.min(prev + increment, 100);
-
-          // Update phases based on progress
-          if (newProgress > 30 && currentPhase === "searching") {
-            setCurrentPhase("analyzing");
-          } else if (newProgress > 70 && currentPhase === "analyzing") {
-            setCurrentPhase("finalizing");
-          }
-
-          return newProgress;
-        }
-
-        return prev;
-      });
-    }, 150);
-
-    // Handle matching result
-    matchingPromise.then(async (result) => {
-      setMatchingResult(result);
-      setShowResult(true);
-      clearInterval(interval);
-    });
-
-    return () => {
-      clearInterval(interval);
+      } catch (error) {
+        console.error("Error checking queue status:", error);
+      }
     };
-  }, [userData, onComplete, currentPhase, goToResults, skipAnimations, user]);
+
+    checkQueueStatus();
+  }, [user, goToResults]);
+
+  useEffect(() => {
+    // Only start matching if explicitly requested
+    if (!hasStartedMatching) {
+      return; // Don't start matching automatically
+    }
+
+    const runMatching = async () => {
+      // If goToResults is true, check current queue status first
+      if (goToResults) {
+        // Get current queue status directly
+        const getCurrentStatus = async () => {
+          if (!user) return false;
+
+          try {
+            const position = await matchingService.getQueuePosition(user.id);
+            if (position > 0) {
+              // User is in queue, show queue status
+              setMatchingResult({
+                state: "queued",
+                queue_position: position,
+                estimated_wait_hours: 24 + Math.floor(Math.random() * 48),
+                flexible_criteria: ["schedule_flexibility", "age_range"],
+              });
+              setShowResult(true);
+              return true; // Found queue status, skip normal matching
+            }
+            return false; // No queue status, continue to normal matching
+          } catch (error) {
+            console.error("Error getting queue status:", error);
+            return false; // Error, continue to normal matching
+          }
+        };
+
+        const shouldSkipMatching = await getCurrentStatus();
+        if (shouldSkipMatching) {
+          return; // Skip normal matching process
+        }
+        // If no queue status found, continue to normal matching process below
+      }
+
+      // Normal matching process
+      const matchingPromise = performRealMatching(userData);
+
+      // Skip animations only if explicitly requested AND user didn't start matching from choice screen
+      // If user chose "Use Current Profile & Start Matching", show animations even if skipAnimations=true
+      const shouldSkipAnimations = skipAnimations && !userChoseToStartMatching;
+
+      if (shouldSkipAnimations) {
+        setSearchProgress(100);
+        matchingPromise.then(async (result) => {
+          setMatchingResult(result);
+          setShowResult(true);
+        });
+        return;
+      }
+
+      // Animate search progress
+      const interval = setInterval(() => {
+        setSearchProgress((prev) => {
+          if (prev < 100) {
+            // Dynamic progress speed based on phase
+            const increment =
+              currentPhase === "searching"
+                ? 1.5
+                : currentPhase === "analyzing"
+                ? 0.8
+                : 2.0;
+
+            const newProgress = Math.min(prev + increment, 100);
+
+            // Update phases based on progress
+            if (newProgress > 30 && currentPhase === "searching") {
+              setCurrentPhase("analyzing");
+            } else if (newProgress > 70 && currentPhase === "analyzing") {
+              setCurrentPhase("finalizing");
+            }
+
+            return newProgress;
+          }
+
+          return prev;
+        });
+      }, 150);
+
+      // Handle matching result
+      matchingPromise
+        .then(async (result) => {
+          console.log("🎯 Matching completed with result:", result);
+          setMatchingResult(result);
+          setShowResult(true);
+          clearInterval(interval);
+        })
+        .catch((error) => {
+          console.error("❌ Matching failed with error:", error);
+          // Set a fallback result in case of error
+          setMatchingResult({
+            state: "queued",
+            queue_position: 1,
+            estimated_wait_hours: 24,
+            flexible_criteria: ["error_fallback"],
+          });
+          setShowResult(true);
+          clearInterval(interval);
+        });
+
+      return () => {
+        clearInterval(interval);
+      };
+    };
+
+    runMatching();
+  }, [
+    userData,
+    onComplete,
+    currentPhase,
+    goToResults,
+    skipAnimations,
+    user,
+    hasStartedMatching,
+    userChoseToStartMatching,
+  ]);
 
   const getPhaseMessage = () => {
     if (showResult) return "Match complete!";
@@ -538,117 +634,192 @@ const Matching: React.FC<MatchingProps> = ({
           <div className="absolute inset-0 bg-gradient-to-br from-rose-50/20 via-pink-50/10 to-orange-50/20 rounded-3xl pointer-events-none"></div>
 
           <div className="relative z-10 text-center space-y-8">
-            {/* Conditional Rendering: Matching Process or Results */}
-            {!showResult ? (
+            {(() => {
+              console.log("🎯 Matching render state:", {
+                hasStartedMatching,
+                showResult,
+                matchingResult: matchingResult?.state,
+                userData,
+              });
+              return null;
+            })()}
+            {!hasStartedMatching ? (
+              // Initial screen - user can choose to start matching
               <>
-                {/* Header */}
-                <div className="mb-12 animate-fade-in-up">
-                  <div className="w-20 h-20 bg-gradient-to-br from-purple-600 via-pink-600 to-red-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg animate-pulse-glow">
-                    <span className="text-4xl animate-bounce-gentle">💫</span>
+                <div className="space-y-4">
+                  <div className="w-20 h-20 bg-gradient-to-br from-pink-400 to-rose-500 rounded-full flex items-center justify-center mx-auto">
+                    <span className="text-4xl">🎯</span>
                   </div>
-                  <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent mb-4 animate-text-shimmer">
-                    Finding Your Perfect Match
-                  </h2>
-                  <p className="text-xl text-gray-600 max-w-md mx-auto leading-relaxed">
-                    We're searching for the best training partners based on your
-                    preferences
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+                    Ready to Find Your Trinity Team?
+                  </h1>
+                  <p className="text-lg text-gray-600 leading-relaxed max-w-md mx-auto">
+                    Start your journey to find the perfect training partners who
+                    share your goals!
                   </p>
                 </div>
 
-                {/* Progress Bar */}
-                <div className="mb-8 animate-slide-in-right animation-delay-100">
-                  <div className="w-full bg-gray-200 rounded-full h-6 mb-4 relative overflow-hidden shadow-inner">
-                    <div
-                      className="bg-gradient-to-r from-rose-500 via-orange-500 to-yellow-500 h-full rounded-full transition-all duration-300 ease-out relative"
-                      style={{ width: `${searchProgress}%` }}
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-white/30 to-transparent rounded-full"></div>
-                      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
-                    </div>
-                  </div>
-                  <p className="text-2xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent animate-pulse">
-                    {getPhaseMessage()}
-                  </p>
-                </div>
-
-                {/* Matching Criteria */}
-                <div className="mb-8 text-left animate-slide-in-left animation-delay-200">
-                  <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                    <span className="text-2xl mr-3 animate-bounce-subtle">
-                      🎯
-                    </span>
-                    Matching based on:
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    {[
-                      { icon: "🎯", text: "Goal", value: userData.goal },
-                      { icon: "💪", text: "Level", value: userData.level },
-                      {
-                        icon: "🗣️",
-                        text: "Languages",
-                        value: userData.languages,
-                      },
-                      {
-                        icon: "👤",
-                        text: "Age",
-                        value: `${userData.age} years`,
-                      },
-                    ].map((item, index) => (
-                      <div
-                        key={index}
-                        className={`p-4 rounded-2xl bg-gradient-to-br from-white/80 to-gray-50/80 border border-gray-200/50 shadow-sm hover:shadow-md transition-all duration-300 animate-slide-in-up`}
-                        style={{ animationDelay: `${300 + index * 100}ms` }}
-                      >
-                        <span className="text-2xl block mb-2 animate-pulse-subtle">
-                          {item.icon}
-                        </span>
-                        <p className="text-sm font-medium text-gray-600 mb-1">
-                          {item.text}
-                        </p>
-                        <p className="text-gray-800 font-semibold text-sm">
-                          {Array.isArray(item.value)
-                            ? item.value.join(", ")
-                            : item.value}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Status */}
-                <div className="mb-8 space-y-4 animate-fade-in animation-delay-700">
-                  <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200">
-                    <p className="text-gray-700 font-medium flex items-center justify-center">
-                      <span className="text-2xl mr-3 animate-pulse-slow">
-                        👥
-                      </span>
-                      Looking for 2 people with similar goals & schedule
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-orange-50/70 border border-orange-200">
-                    <p className="text-orange-700 font-bold flex items-center justify-center">
-                      <span className="text-2xl mr-3 animate-twinkle">📱</span>
-                      We'll notify you within 24-48h
-                    </p>
-                  </div>
-                </div>
-
-                {/* Learn More */}
-                <div className="text-center mb-6 animate-fade-in animation-delay-900">
-                  <p className="text-gray-600 mb-3 flex items-center justify-center">
-                    <span className="text-xl mr-2 animate-bounce-subtle">
-                      📖
-                    </span>
-                    Meanwhile, learn about Trinity
-                  </p>
-                  <button className="text-rose-600 hover:text-orange-600 font-bold text-lg hover:scale-105 transition-all duration-200 p-2 rounded-xl hover:bg-rose-50">
-                    Browse Success Stories
+                <div className="space-y-3">
+                  <button
+                    onClick={startMatching}
+                    className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-semibold py-4 px-8 rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                  >
+                    🚀 Use Current Profile & Start Matching
                   </button>
+
+                  <button
+                    onClick={() => {
+                      // Go back to onboarding to change data
+                      if (onModifyData) {
+                        onModifyData();
+                      } else {
+                        // Fallback to dashboard if onModifyData is not provided
+                        onComplete();
+                      }
+                    }}
+                    className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold py-3 px-8 rounded-2xl transition-all duration-300"
+                  >
+                    ✏️ Modify My Data & Match
+                  </button>
+
+                  <button
+                    onClick={onComplete}
+                    className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-8 rounded-2xl transition-all duration-300"
+                  >
+                    ← Back to Dashboard
+                  </button>
+                </div>
+
+                <div className="text-sm text-gray-500 bg-gray-50 rounded-xl p-4">
+                  <p className="font-medium mb-2">Your Profile:</p>
+                  <div className="space-y-1 text-left">
+                    <p>📊 Goal: {userData.goal}</p>
+                    <p>💪 Level: {userData.level}</p>
+                    <p>🌍 Languages: {userData.languages.join(", ")}</p>
+                    <p>🎂 Age: {userData.age}</p>
+                  </div>
                 </div>
               </>
             ) : (
-              /* Results Display */
-              <div className="animate-fade-in">{getResultContent()}</div>
+              // Matching process screens
+              <>
+                {/* Conditional Rendering: Matching Process or Results */}
+                {!showResult ? (
+                  <>
+                    {/* Header */}
+                    <div className="mb-12 animate-fade-in-up">
+                      <div className="w-20 h-20 bg-gradient-to-br from-purple-600 via-pink-600 to-red-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg animate-pulse-glow">
+                        <span className="text-4xl animate-bounce-gentle">
+                          💫
+                        </span>
+                      </div>
+                      <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent mb-4 animate-text-shimmer">
+                        Finding Your Perfect Match
+                      </h2>
+                      <p className="text-xl text-gray-600 max-w-md mx-auto leading-relaxed">
+                        We're searching for the best training partners based on
+                        your preferences
+                      </p>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="mb-8 animate-slide-in-right animation-delay-100">
+                      <div className="w-full bg-gray-200 rounded-full h-6 mb-4 relative overflow-hidden shadow-inner">
+                        <div
+                          className="bg-gradient-to-r from-rose-500 via-orange-500 to-yellow-500 h-full rounded-full transition-all duration-300 ease-out relative"
+                          style={{ width: `${searchProgress}%` }}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/30 to-transparent rounded-full"></div>
+                          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                        </div>
+                      </div>
+                      <p className="text-2xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent animate-pulse">
+                        {getPhaseMessage()}
+                      </p>
+                    </div>
+
+                    {/* Matching Criteria */}
+                    <div className="mb-8 text-left animate-slide-in-left animation-delay-200">
+                      <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+                        <span className="text-2xl mr-3 animate-bounce-subtle">
+                          🎯
+                        </span>
+                        Matching based on:
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        {[
+                          { icon: "🎯", text: "Goal", value: userData.goal },
+                          { icon: "💪", text: "Level", value: userData.level },
+                          {
+                            icon: "🗣️",
+                            text: "Languages",
+                            value: userData.languages,
+                          },
+                          {
+                            icon: "👤",
+                            text: "Age",
+                            value: `${userData.age} years`,
+                          },
+                        ].map((item, index) => (
+                          <div
+                            key={index}
+                            className={`p-4 rounded-2xl bg-gradient-to-br from-white/80 to-gray-50/80 border border-gray-200/50 shadow-sm hover:shadow-md transition-all duration-300 animate-slide-in-up`}
+                            style={{ animationDelay: `${300 + index * 100}ms` }}
+                          >
+                            <span className="text-2xl block mb-2 animate-pulse-subtle">
+                              {item.icon}
+                            </span>
+                            <p className="text-sm font-medium text-gray-600 mb-1">
+                              {item.text}
+                            </p>
+                            <p className="text-gray-800 font-semibold text-sm">
+                              {Array.isArray(item.value)
+                                ? item.value.join(", ")
+                                : item.value}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Status */}
+                    <div className="mb-8 space-y-4 animate-fade-in animation-delay-700">
+                      <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200">
+                        <p className="text-gray-700 font-medium flex items-center justify-center">
+                          <span className="text-2xl mr-3 animate-pulse-slow">
+                            👥
+                          </span>
+                          Looking for 2 people with similar goals & schedule
+                        </p>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-orange-50/70 border border-orange-200">
+                        <p className="text-orange-700 font-bold flex items-center justify-center">
+                          <span className="text-2xl mr-3 animate-twinkle">
+                            📱
+                          </span>
+                          We'll notify you within 24-48h
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Learn More */}
+                    <div className="text-center mb-6 animate-fade-in animation-delay-900">
+                      <p className="text-gray-600 mb-3 flex items-center justify-center">
+                        <span className="text-xl mr-2 animate-bounce-subtle">
+                          📖
+                        </span>
+                        Meanwhile, learn about Trinity
+                      </p>
+                      <button className="text-rose-600 hover:text-orange-600 font-bold text-lg hover:scale-105 transition-all duration-200 p-2 rounded-xl hover:bg-rose-50">
+                        Browse Success Stories
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  /* Results Display */
+                  <div className="animate-fade-in">{getResultContent()}</div>
+                )}
+              </>
             )}
 
             {/* Go to Dashboard Button - only show when matching is complete or queued */}

@@ -1,7 +1,32 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { matchingService } from "../../lib/supabase";
+import { dashboardService } from "../../lib/supabase";
 import { UserMenu } from "../common/UserMenu";
+
+interface TrioMember {
+  id: string;
+  name: string;
+  age: number;
+}
+
+interface TrioData {
+  id: string;
+  name: string;
+  goal: string;
+  level: string;
+  language: string;
+  members: TrioMember[];
+  createdAt: string;
+  daysActive: number;
+}
+
+interface QueueData {
+  position: number;
+  goal: string;
+  level: string;
+  joinedAt: string;
+  estimatedWaitHours: number;
+}
 
 interface DashboardProps {
   userData: {
@@ -20,32 +45,27 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onGoToMatching,
 }) => {
   const { user } = useAuth();
-  const [matchingStatus, setMatchingStatus] = useState<{
-    isInQueue: boolean;
-    position?: number;
-    loading: boolean;
-  }>({ isInQueue: false, loading: true });
+  const [userStatus, setUserStatus] = useState<{
+    status: "loading" | "in_trio" | "in_queue" | "no_group";
+    trio?: TrioData | null;
+    queue?: QueueData | null;
+  }>({ status: "loading" });
 
-  // Check matching status on component load
+  // Recupera lo stato reale dell'utente
   useEffect(() => {
-    const checkStatus = async () => {
+    const fetchUserStatus = async () => {
       if (!user) return;
 
       try {
-        // Check if user is in matching queue
-        const position = await matchingService.getQueuePosition(user.id);
-        setMatchingStatus({
-          isInQueue: position > 0,
-          position: position > 0 ? position : undefined,
-          loading: false,
-        });
+        const status = await dashboardService.getUserStatus(user.id);
+        setUserStatus(status);
       } catch (error) {
-        console.log("User not in matching queue:", error);
-        setMatchingStatus({ isInQueue: false, loading: false });
+        console.error("Errore nel recupero stato utente:", error);
+        setUserStatus({ status: "no_group" });
       }
     };
 
-    checkStatus();
+    fetchUserStatus();
   }, [user]);
 
   const goToMatchingStatus = () => {
@@ -117,18 +137,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <UserMenu variant="dark" />
           </div>
 
-          {/* Matching Status */}
-          {!matchingStatus.loading && matchingStatus.isInQueue && (
+          {/* Status dinamico basato su stato reale */}
+          {userStatus.status === "loading" && (
+            <div className="bg-blue-500/20 backdrop-blur-sm rounded-xl p-4 mb-4 border border-blue-400/30">
+              <div className="text-center">
+                <div className="animate-pulse text-white">
+                  🔄 Caricamento stato...
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Utente in CODA */}
+          {userStatus.status === "in_queue" && userStatus.queue && (
             <div className="bg-amber-500/20 backdrop-blur-sm rounded-xl p-4 mb-4 border border-amber-400/30">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-semibold text-white mb-1">
-                    🔍 Looking for your Trinity partners
+                    ⏰ In coda per il matching
                   </h3>
                   <p className="text-amber-100 text-sm">
-                    {matchingStatus.position && matchingStatus.position > 1
-                      ? `Position ${matchingStatus.position} in queue`
-                      : "Searching for compatible matches..."}
+                    Posizione #{userStatus.queue.position} • Goal:{" "}
+                    {userStatus.queue.goal} • Level: {userStatus.queue.level}
+                  </p>
+                  <p className="text-amber-100 text-xs mt-1">
+                    Stima attesa: ~{userStatus.queue.estimatedWaitHours}h
                   </p>
                 </div>
                 <button
@@ -141,166 +174,222 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           )}
 
-          {/* Trio Overview */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-            <h2 className="font-semibold mb-2">
-              👥 Your Trio: "{mockData.trioName}"
-            </h2>
-            <div className="flex items-center space-x-2 text-sm text-blue-100 mb-2">
-              <span>{mockData.members.join(" • ")}</span>
+          {/* Utente in TRIO */}
+          {userStatus.status === "in_trio" && userStatus.trio && (
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-4">
+              <h2 className="font-semibold mb-2 text-white">
+                👥 {userStatus.trio.name}
+              </h2>
+              <div className="flex items-center space-x-2 text-sm text-blue-100 mb-2">
+                <span>
+                  {userStatus.trio.members
+                    .map((m: TrioMember) => m.name)
+                    .join(" • ")}
+                </span>
+              </div>
+              <div className="flex items-center space-x-4 text-sm text-blue-100">
+                <span>🎯 {userStatus.trio.goal}</span>
+                <span>💪 {userStatus.trio.level}</span>
+                <span>🗣️ {userStatus.trio.language}</span>
+                <span>📅 {userStatus.trio.daysActive} giorni</span>
+              </div>
             </div>
-            <div className="flex items-center space-x-4 text-sm">
-              <span>
-                Day {mockData.currentDay} of {mockData.totalDays}
-              </span>
-              <span>🔥 {mockData.currentStreak} day streak</span>
+          )}
+
+          {/* Utente SENZA GRUPPO */}
+          {userStatus.status === "no_group" && (
+            <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-sm rounded-xl p-6 mb-4 border border-green-400/30">
+              <div className="text-center">
+                <h2 className="font-bold text-white text-xl mb-3">
+                  � Inizia il tuo percorso Trinity!
+                </h2>
+                <p className="text-green-100 mb-4">
+                  Non fai ancora parte di un gruppo. Completa il tuo profilo e
+                  trova i tuoi compagni di allenamento ideali!
+                </p>
+                <button
+                  onClick={onGoToMatching}
+                  className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 transition-all duration-200 shadow-lg"
+                >
+                  🎯 Trova il mio Trinity Team
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="px-6 py-6 space-y-6">
-        {/* Progress Summary */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">
-              ⭐ Today's Progress: {mockData.completedTasks}/
-              {mockData.totalTasks}
-            </h3>
-            <span className="text-2xl animate-pulse">✨</span>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="mb-6">
-            <div className="bg-gray-200 rounded-full h-3 mb-2">
-              <div
-                className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500 shadow-md"
-                style={{ width: `${mockData.completionPercentage}%` }}
-              />
+      {/* Main Content - Solo per utenti in trio */}
+      {userStatus.status === "in_trio" && (
+        <div className="px-6 py-6 space-y-6">
+          {/* Progress Summary */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                ⭐ Today's Progress: {mockData.completedTasks}/
+                {mockData.totalTasks}
+              </h3>
+              <span className="text-2xl animate-pulse">✨</span>
             </div>
-            <p className="text-sm text-gray-600 text-center">
-              {mockData.completionPercentage}% Complete
-            </p>
-          </div>
-        </div>
 
-        {/* Daily Tasks */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
-          <h3 className="text-lg font-semibold mb-4">📋 Daily Tasks</h3>
-          <div className="space-y-3">
-            {mockData.tasks.map((task, index) => (
-              <div key={index} className="flex items-center space-x-3">
+            {/* Progress Bar */}
+            <div className="mb-6">
+              <div className="bg-gray-200 rounded-full h-3 mb-2">
                 <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-sm shadow-sm ${
-                    task.completed
-                      ? "bg-gradient-to-br from-green-400 to-green-500 text-white"
-                      : "bg-gray-200/80 text-gray-400"
-                  }`}
-                >
-                  {task.completed ? "✅" : "❌"}
-                </div>
-                <div className="flex items-center space-x-2 flex-1">
-                  <span className="text-lg">{task.emoji}</span>
-                  <span
-                    className={
-                      task.completed ? "text-gray-900" : "text-gray-500"
-                    }
-                  >
-                    {task.name}
-                  </span>
-                </div>
+                  className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500 shadow-md"
+                  style={{ width: `${mockData.completionPercentage}%` }}
+                />
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Trio Chat Preview */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
-          <h3 className="text-lg font-semibold mb-4">💬 Trio Chat Preview</h3>
-          <div className="space-y-3">
-            {mockData.chatMessages.map((msg, index) => (
-              <div key={index} className="flex items-start space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-sm font-medium text-white shadow-md">
-                  {msg.sender.charAt(0)}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-medium text-sm">{msg.sender}:</span>
-                    <span className="text-xs text-gray-500">{msg.time}</span>
-                  </div>
-                  <p className="text-gray-700 text-sm">{msg.message}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button className="w-full mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-600 py-2 rounded-lg hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 border border-blue-200/50 shadow-sm">
-            Open Chat →
-          </button>
-        </div>
-
-        {/* Next Video Call */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
-          <h3 className="text-lg font-semibold mb-4">📹 Next Video Call</h3>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">
-                {mockData.nextCall.date} {mockData.nextCall.time}
-              </p>
-              <p className="text-sm text-gray-500">
-                {mockData.nextCall.confirmed
-                  ? "✅ Confirmed"
-                  : "⏳ Not confirmed"}
+              <p className="text-sm text-gray-600 text-center">
+                {mockData.completionPercentage}% Complete
               </p>
             </div>
-            <button className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-md">
-              Confirm Availability
+          </div>
+
+          {/* Daily Tasks */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
+            <h3 className="text-lg font-semibold mb-4">📋 Daily Tasks</h3>
+            <div className="space-y-3">
+              {mockData.tasks.map((task, index) => (
+                <div key={index} className="flex items-center space-x-3">
+                  <div
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-sm shadow-sm ${
+                      task.completed
+                        ? "bg-gradient-to-br from-green-400 to-green-500 text-white"
+                        : "bg-gray-200/80 text-gray-400"
+                    }`}
+                  >
+                    {task.completed ? "✅" : "❌"}
+                  </div>
+                  <div className="flex items-center space-x-2 flex-1">
+                    <span className="text-lg">{task.emoji}</span>
+                    <span
+                      className={
+                        task.completed ? "text-gray-900" : "text-gray-500"
+                      }
+                    >
+                      {task.name}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Trio Chat Preview */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
+            <h3 className="text-lg font-semibold mb-4">💬 Trio Chat Preview</h3>
+            <div className="space-y-3">
+              {mockData.chatMessages.map((msg, index) => (
+                <div key={index} className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-sm font-medium text-white shadow-md">
+                    {msg.sender.charAt(0)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-medium text-sm">{msg.sender}:</span>
+                      <span className="text-xs text-gray-500">{msg.time}</span>
+                    </div>
+                    <p className="text-gray-700 text-sm">{msg.message}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button className="w-full mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-600 py-2 rounded-lg hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 border border-blue-200/50 shadow-sm">
+              Open Chat →
             </button>
           </div>
-        </div>
 
-        {/* Recent Achievement */}
-        <div className="bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 text-white rounded-xl p-6 shadow-lg border border-white/20 relative overflow-hidden">
-          <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
-          <div className="relative z-10">
-            <h3 className="text-lg font-semibold mb-2">
-              🏆 Recent Achievement
-            </h3>
-            <div className="flex items-center space-x-3">
-              <span className="text-3xl animate-bounce">🔥</span>
+          {/* Next Video Call */}
+          <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
+            <h3 className="text-lg font-semibold mb-4">📹 Next Video Call</h3>
+            <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">
-                  {mockData.achievement.name} Unlocked!
+                  {mockData.nextCall.date} {mockData.nextCall.time}
                 </p>
-                <p className="text-yellow-100 text-sm">
-                  {mockData.achievement.description}
+                <p className="text-sm text-gray-500">
+                  {mockData.nextCall.confirmed
+                    ? "✅ Confirmed"
+                    : "⏳ Not confirmed"}
                 </p>
+              </div>
+              <button className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-md">
+                Confirm Availability
+              </button>
+            </div>
+          </div>
+
+          {/* Recent Achievement */}
+          <div className="bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 text-white rounded-xl p-6 shadow-lg border border-white/20 relative overflow-hidden">
+            <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+            <div className="relative z-10">
+              <h3 className="text-lg font-semibold mb-2">
+                🏆 Recent Achievement
+              </h3>
+              <div className="flex items-center space-x-3">
+                <span className="text-3xl animate-bounce">🔥</span>
+                <div>
+                  <p className="font-medium">
+                    {mockData.achievement.name} Unlocked!
+                  </p>
+                  <p className="text-yellow-100 text-sm">
+                    {mockData.achievement.description}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="space-y-4">
-          <button className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 rounded-xl font-semibold hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-lg backdrop-blur-sm border border-white/20">
-            📊 View Full Progress
-          </button>
-          <button className="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white py-4 rounded-xl font-semibold hover:from-purple-600 hover:to-pink-700 transition-all duration-200 shadow-lg backdrop-blur-sm border border-white/20">
-            ✏️ Complete Missing Tasks
-          </button>
-        </div>
+          {/* Action Buttons */}
+          <div className="space-y-4">
+            <button className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 rounded-xl font-semibold hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-lg backdrop-blur-sm border border-white/20">
+              📊 View Full Progress
+            </button>
+            <button className="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white py-4 rounded-xl font-semibold hover:from-purple-600 hover:to-pink-700 transition-all duration-200 shadow-lg backdrop-blur-sm border border-white/20">
+              ✏️ Complete Missing Tasks
+            </button>
+          </div>
 
-        {/* User Info Summary (for testing) */}
-        <div className="bg-white/70 backdrop-blur-sm rounded-xl p-4 text-sm text-gray-700 shadow-md border border-white/30">
-          <h4 className="font-medium mb-2 text-gray-800">User Summary:</h4>
-          <div>👤 Name: {userData.name}</div>
-          <div>🎯 Goal: {userData.goal}</div>
-          <div>💪 Level: {userData.level}</div>
-          <div>🗣️ Languages: {userData.languages.join(", ")}</div>
-          <div>🎂 Age: {userData.age}</div>
-          <div>📧 Email: {user?.email}</div>
+          {/* User Info Summary (for testing) */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-xl p-4 text-sm text-gray-700 shadow-md border border-white/30">
+            <h4 className="font-medium mb-2 text-gray-800">User Summary:</h4>
+            <div>👤 Name: {userData.name}</div>
+            <div>🎯 Goal: {userData.goal}</div>
+            <div>💪 Level: {userData.level}</div>
+            <div>🗣️ Languages: {userData.languages.join(", ")}</div>
+            <div>🎂 Age: {userData.age}</div>
+            <div>📧 Email: {user?.email}</div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Contenuto per utenti in coda o senza gruppo */}
+      {(userStatus.status === "in_queue" ||
+        userStatus.status === "no_group") && (
+        <div className="px-6 py-6 space-y-6">
+          <div className="bg-white/70 backdrop-blur-sm rounded-xl p-4 text-sm text-gray-700 shadow-md border border-white/30">
+            <h4 className="font-medium mb-2 text-gray-800">Il tuo profilo:</h4>
+            <div>👤 Nome: {userData.name}</div>
+            <div>🎯 Obiettivo: {userData.goal}</div>
+            <div>💪 Livello: {userData.level}</div>
+            <div>🗣️ Lingue: {userData.languages.join(", ")}</div>
+            <div>🎂 Età: {userData.age}</div>
+            <div>📧 Email: {user?.email}</div>
+
+            {userStatus.status === "in_queue" && (
+              <div className="mt-4 p-3 bg-amber-50 rounded-lg">
+                <p className="text-amber-800 font-medium">
+                  ⏰ Sei in coda per il matching!
+                </p>
+                <p className="text-amber-600 text-sm">
+                  Ti contatteremo non appena troviamo partner compatibili.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

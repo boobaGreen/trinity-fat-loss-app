@@ -50,6 +50,7 @@ function App() {
   const [matchingState, setMatchingState] = useState({
     skipAnimations: false,
     goToResults: false,
+    isModifying: false, // New flag to track when user is modifying data
   });
   const [userProgress, setUserProgress] = useState<UserProgress>({
     name: "",
@@ -182,8 +183,8 @@ function App() {
         console.log("🔍 User in matching queue, going to dashboard");
         setCurrentScreen("dashboard");
       } else if (userStatus.hasProfile) {
-        console.log("� User has profile but no trio, going to matching");
-        setCurrentScreen("matching");
+        console.log("👤 User has profile, going to dashboard");
+        setCurrentScreen("dashboard");
       } else {
         console.log("🏠 User needs onboarding, showing landing page first");
         // User doesn't have complete profile, show landing page first
@@ -352,11 +353,37 @@ function App() {
               age: userProgress.userData?.age || 28,
             }}
             onComplete={() => {
-              setMatchingState({ skipAnimations: false, goToResults: false });
+              // Force refresh user status after returning from matching
+              if (user) {
+                checkUserStatus(user.id);
+              }
+              setMatchingState({
+                skipAnimations: false,
+                goToResults: false,
+                isModifying: false,
+              });
               setCurrentScreen("dashboard");
             }}
+            onModifyData={() => {
+              // User wants to modify their data - go directly to data collection
+              // Keep the user logged in but reset their progress data
+              setUserProgress({
+                name: userProgress.name, // Keep existing name
+                loginMethod: userProgress.loginMethod, // Keep login method
+                userData: null, // Reset user data
+                fitnessLevel: "", // Reset fitness level
+              });
+              setMatchingState({
+                skipAnimations: false,
+                goToResults: false,
+                isModifying: true,
+              });
+              setCurrentScreen("data-collection");
+            }}
             skipAnimations={matchingState.skipAnimations}
-            goToResults={matchingState.goToResults}
+            goToResults={
+              matchingState.goToResults && !matchingState.isModifying
+            }
           />
         );
 
@@ -370,8 +397,50 @@ function App() {
               languages: userProgress.userData?.languages || ["English"],
               age: userProgress.userData?.age || 28,
             }}
-            onGoToMatching={() => {
-              setMatchingState({ skipAnimations: true, goToResults: true });
+            onGoToMatching={async () => {
+              // Load user data from database before going to matching
+              if (user) {
+                try {
+                  const { data: dbUserData, error } = await supabase
+                    .from("users")
+                    .select("*")
+                    .eq("id", user.id)
+                    .single();
+
+                  if (error) throw error;
+
+                  if (dbUserData) {
+                    // Update userProgress with real database data
+                    setUserProgress({
+                      name: dbUserData.name || userProgress.name,
+                      loginMethod: userProgress.loginMethod,
+                      fitnessLevel:
+                        dbUserData.fitness_level || userProgress.fitnessLevel,
+                      userData: {
+                        name:
+                          dbUserData.name ||
+                          userProgress.userData?.name ||
+                          userProgress.name,
+                        weightGoal:
+                          dbUserData.weight_goal ||
+                          userProgress.userData?.weightGoal ||
+                          "10-15kg",
+                        languages: dbUserData.languages ||
+                          userProgress.userData?.languages || ["English"],
+                        age: dbUserData.age || userProgress.userData?.age || 28,
+                      },
+                    });
+                  }
+                } catch (error) {
+                  console.error("Error loading user data:", error);
+                }
+              }
+
+              setMatchingState({
+                skipAnimations: true,
+                goToResults: true,
+                isModifying: false,
+              });
               setCurrentScreen("matching");
             }}
             onLogout={() => {
