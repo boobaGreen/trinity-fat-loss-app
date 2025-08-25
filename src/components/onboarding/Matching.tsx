@@ -282,18 +282,6 @@ const Matching: React.FC<MatchingProps> = ({
       setMatchingResult(result);
       setShowResult(true);
       clearInterval(interval);
-
-      // Handle matching result
-      setMatchingResult(result);
-      setShowResult(true);
-      clearInterval(interval);
-
-      // Auto-complete for successful match
-      if (result.state === "matched") {
-        setTimeout(() => {
-          onComplete();
-        }, 3000);
-      }
     });
 
     return () => {
@@ -356,13 +344,6 @@ const Matching: React.FC<MatchingProps> = ({
                 </div>
               ))}
             </div>
-
-            <button
-              onClick={onComplete}
-              className="w-full py-4 px-6 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
-            >
-              Start Training Together! 🚀
-            </button>
           </div>
         );
 
@@ -406,6 +387,43 @@ const Matching: React.FC<MatchingProps> = ({
               </p>
               <p className="text-blue-600 text-sm">
                 We'll notify you when we find better compatibility
+              </p>
+            </div>
+
+            <button
+              onClick={() => setNotificationsEnabled((prev) => !prev)}
+              className={`w-full py-4 px-6 font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 ${
+                notificationsEnabled
+                  ? "bg-gradient-to-r from-green-500 to-green-600 text-white"
+                  : "bg-gradient-to-r from-gray-400 to-gray-500 text-gray-800"
+              }`}
+            >
+              <span className="flex items-center justify-center">
+                <span className="text-2xl mr-3">
+                  {notificationsEnabled ? "✅" : "🔔"}
+                </span>
+                {notificationsEnabled
+                  ? "Notifications Enabled"
+                  : "Enable Notifications"}
+              </span>
+            </button>
+
+            {/* Cancel Matching Button */}
+            <button
+              onClick={cancelMatching}
+              className="w-full py-4 px-6 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+            >
+              <span className="flex items-center justify-center">
+                <span className="text-2xl mr-3">❌</span>
+                Cancel Queue Request
+              </span>
+            </button>
+
+            {/* 📱 Platform-specific notification info */}
+            <div className="mt-4 p-4 bg-blue-50 rounded-2xl border border-blue-200">
+              <p className="text-blue-700 text-sm text-center">
+                📱 Notifications will keep you updated about your matching
+                progress
               </p>
             </div>
           </div>
@@ -636,7 +654,8 @@ const Matching: React.FC<MatchingProps> = ({
             {/* Go to Dashboard Button - only show when matching is complete or queued */}
             {matchingResult &&
               (matchingResult.state === "matched" ||
-                matchingResult.state === "queued") && (
+                matchingResult.state === "queued" ||
+                matchingResult.state === "found_partial") && (
                 <div className="animate-fade-in animation-delay-1000">
                   <button
                     onClick={onComplete}
