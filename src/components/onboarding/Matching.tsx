@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase, matchingService } from "../../lib/supabase";
 import { UserMenu } from "../common/UserMenu";
+import { useAuth } from "../../hooks/useAuth";
 
 interface MatchingData {
   name: string;
@@ -13,6 +14,8 @@ interface MatchingData {
 interface MatchingProps {
   userData: MatchingData;
   onComplete: () => void;
+  skipAnimations?: boolean;
+  goToResults?: boolean;
 }
 
 interface MatchingResult {
@@ -147,22 +150,87 @@ const performRealMatching = async (
   }
 };
 
-const Matching: React.FC<MatchingProps> = ({ userData, onComplete }) => {
-  const [searchProgress, setSearchProgress] = useState(0);
+const Matching: React.FC<MatchingProps> = ({
+  userData,
+  onComplete,
+  skipAnimations = false,
+  goToResults = false,
+}) => {
+  const { user } = useAuth();
+  const [searchProgress, setSearchProgress] = useState(
+    skipAnimations ? 100 : 0
+  );
   const [currentPhase, setCurrentPhase] = useState<
     "searching" | "analyzing" | "finalizing"
   >("searching");
   const [matchingResult, setMatchingResult] = useState<MatchingResult | null>(
     null
   );
-  const [showResult, setShowResult] = useState(false);
+  const [showResult, setShowResult] = useState(goToResults);
 
   // Stato locale per toggle notification
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
+  // Function to cancel matching and leave queue
+  const cancelMatching = async () => {
+    if (!user) return;
+
+    try {
+      // Remove from matching queue completely
+      await matchingService.removeFromQueue(user.id);
+      // Update user matching status
+      await matchingService.updateMatchingStatus(user.id, "available");
+      // Update UI state - show success message
+      setMatchingResult({
+        state: "searching",
+        matches: [],
+      });
+      setShowResult(true);
+      console.log("✅ Successfully cancelled matching");
+    } catch (error) {
+      console.error("Error cancelling matching:", error);
+    }
+  };
+
   useEffect(() => {
-    // Start the real matching process
+    // If goToResults is true, skip animations and show current queue status
+    if (goToResults) {
+      // Get current queue status directly
+      const getCurrentStatus = async () => {
+        if (!user) return;
+
+        try {
+          const position = await matchingService.getQueuePosition(user.id);
+          if (position > 0) {
+            setMatchingResult({
+              state: "queued",
+              queue_position: position,
+              estimated_wait_hours: 24 + Math.floor(Math.random() * 48),
+              flexible_criteria: ["schedule_flexibility", "age_range"],
+            });
+            setShowResult(true);
+          }
+        } catch (error) {
+          console.error("Error getting queue status:", error);
+        }
+      };
+
+      getCurrentStatus();
+      return; // Skip normal matching process
+    }
+
+    // Normal matching process
     const matchingPromise = performRealMatching(userData);
+
+    // Skip animations if requested
+    if (skipAnimations) {
+      setSearchProgress(100);
+      matchingPromise.then(async (result) => {
+        setMatchingResult(result);
+        setShowResult(true);
+      });
+      return;
+    }
 
     // Animate search progress
     const interval = setInterval(() => {
@@ -214,7 +282,7 @@ const Matching: React.FC<MatchingProps> = ({ userData, onComplete }) => {
     return () => {
       clearInterval(interval);
     };
-  }, [userData, onComplete, currentPhase]);
+  }, [userData, onComplete, currentPhase, goToResults, skipAnimations, user]);
 
   const getPhaseMessage = () => {
     if (showResult) return "Match complete!";
@@ -389,6 +457,17 @@ const Matching: React.FC<MatchingProps> = ({ userData, onComplete }) => {
                 {notificationsEnabled
                   ? "Notifications Enabled"
                   : "Enable Notifications"}
+              </span>
+            </button>
+
+            {/* Cancel Matching Button */}
+            <button
+              onClick={cancelMatching}
+              className="w-full py-4 px-6 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
+            >
+              <span className="flex items-center justify-center">
+                <span className="text-2xl mr-3">❌</span>
+                Cancel Queue Request
               </span>
             </button>
 

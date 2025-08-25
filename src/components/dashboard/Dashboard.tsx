@@ -11,9 +11,14 @@ interface DashboardProps {
     age: number;
   };
   onLogout?: () => void;
+  onGoToMatching?: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
+export const Dashboard: React.FC<DashboardProps> = ({
+  userData,
+  onLogout,
+  onGoToMatching,
+}) => {
   const { user, signOut } = useAuth();
   const [matchingStatus, setMatchingStatus] = useState<{
     isInQueue: boolean;
@@ -43,19 +48,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
     checkStatus();
   }, [user]);
 
-  const cancelMatching = async () => {
-    if (!user) return;
-
-    try {
-      // Remove from matching queue completely
-      await matchingService.removeFromQueue(user.id);
-      // Update user matching status
-      await matchingService.updateMatchingStatus(user.id, "available");
-      // Update UI state
-      setMatchingStatus({ isInQueue: false, loading: false });
-      console.log("✅ Successfully cancelled matching");
-    } catch (error) {
-      console.error("Error cancelling matching:", error);
+  const goToMatchingStatus = () => {
+    // Use callback to go to matching with special state
+    if (onGoToMatching) {
+      onGoToMatching();
     }
   };
 
@@ -152,10 +148,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
                   </p>
                 </div>
                 <button
-                  onClick={cancelMatching}
+                  onClick={goToMatchingStatus}
                   className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm transition-colors duration-200"
                 >
-                  Cancel Search
+                  View Status
                 </button>
               </div>
             </div>

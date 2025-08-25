@@ -47,6 +47,10 @@ interface UserProgress {
 
 function App() {
   const [currentScreen, setCurrentScreen] = useState<AppScreen>("landing");
+  const [matchingState, setMatchingState] = useState({
+    skipAnimations: false,
+    goToResults: false,
+  });
   const [userProgress, setUserProgress] = useState<UserProgress>({
     name: "",
     loginMethod: "",
@@ -347,7 +351,12 @@ function App() {
               languages: userProgress.userData?.languages || ["English"],
               age: userProgress.userData?.age || 28,
             }}
-            onComplete={() => setCurrentScreen("dashboard")}
+            onComplete={() => {
+              setMatchingState({ skipAnimations: false, goToResults: false });
+              setCurrentScreen("dashboard");
+            }}
+            skipAnimations={matchingState.skipAnimations}
+            goToResults={matchingState.goToResults}
           />
         );
 
@@ -360,6 +369,10 @@ function App() {
               level: userProgress.fitnessLevel,
               languages: userProgress.userData?.languages || ["English"],
               age: userProgress.userData?.age || 28,
+            }}
+            onGoToMatching={() => {
+              setMatchingState({ skipAnimations: true, goToResults: true });
+              setCurrentScreen("matching");
             }}
             onLogout={() => {
               setCurrentScreen("landing");
