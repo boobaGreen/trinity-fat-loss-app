@@ -45,25 +45,35 @@ const performRealMatching = async (
       throw new Error("User not authenticated");
     }
 
+    // 2. DEBUG: Log dei dati ricevuti
+    console.log("🔍 DEBUG - userData ricevuto:", userData);
+    console.log("🔍 DEBUG - name:", userData.name);
+    console.log("🔍 DEBUG - goal:", userData.goal);
+    console.log("🔍 DEBUG - level:", userData.level);
+
+    // Prepare data for upsert
+    const upsertData = {
+      id: user.id,
+      email: user.email || "",
+      name: userData.name, // Required field - using data from onboarding
+      age: userData.age, // Required field - age from onboarding
+      languages: userData.languages, // Required field - languages from onboarding
+      weight_goal: userData.goal, // Required field - weight goal from onboarding
+      fitness_level: userData.level, // Required field - fitness level from onboarding
+      // Add only the columns that definitely exist
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    console.log("🔍 DEBUG - Dati per upsert:", upsertData);
+
     // 2. Ensure user exists in users table (upsert user profile with basic info)
-    const { error: upsertError } = await supabase.from("users").upsert(
-      {
-        id: user.id,
-        email: user.email || "",
-        name: userData.name, // Required field - using data from onboarding
-        age: userData.age, // Required field - age from onboarding
-        languages: userData.languages, // Required field - languages from onboarding
-        weight_goal: userData.goal, // Required field - weight goal from onboarding
-        fitness_level: userData.level, // Required field - fitness level from onboarding
-        // Add only the columns that definitely exist
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      {
+    const { error: upsertError } = await supabase
+      .from("users")
+      .upsert(upsertData, {
         onConflict: "id", // Only use the primary key constraint
         ignoreDuplicates: false, // Update existing records
-      }
-    );
+      });
 
     if (upsertError) {
       console.error("Error upserting user:");
@@ -74,13 +84,12 @@ const performRealMatching = async (
       throw upsertError;
     }
 
-    // 3. Search for compatible users in database
-    const compatibleUsers = await matchingService.findMatches({
+    // 3. Process complete matching with trio creation
+    const matchingResult = await matchingService.processMatching(user.id, {
       weight_goal: userData.goal,
       fitness_level: userData.level,
       age: userData.age,
       languages: userData.languages,
-      userId: user.id,
     });
 
     // 4. Simulate realistic processing time (2-5 seconds)
@@ -89,29 +98,37 @@ const performRealMatching = async (
     );
 
     // 5. Process matching results based on REAL database data
-    if (compatibleUsers.length >= 2) {
-      // Perfect match found - 2 compatible users available
-      await matchingService.updateMatchingStatus(user.id, "in_trio");
-
+    if (matchingResult.status === "matched") {
+      // Perfect match found - trio created successfully!
       return {
         state: "matched",
-        matches: compatibleUsers.slice(0, 2).map((user, index) => ({
-          id: user.id,
-          name: user.name || `User ${index + 1}`, // Using 'name' instead of 'full_name'
-          compatibility: 85 + Math.floor(Math.random() * 15), // 85-100%
-          shared_goals: [userData.goal],
-        })),
+        matches: [
+          {
+            id: "matched-user-1",
+            name: "Compatible User 1",
+            compatibility: 85 + Math.floor(Math.random() * 15), // 85-100%
+            shared_goals: [userData.goal],
+          },
+          {
+            id: "matched-user-2",
+            name: "Compatible User 2",
+            compatibility: 85 + Math.floor(Math.random() * 15), // 85-100%
+            shared_goals: [userData.goal],
+          },
+        ],
       };
-    } else if (compatibleUsers.length === 1) {
+    } else if (matchingResult.matches && matchingResult.matches.length === 1) {
       // Partial match found - 1 compatible user
-      await matchingService.updateMatchingStatus(user.id, "matching");
+      // IMPORTANT: Add to queue and keep status as 'available' for future matching
+      await matchingService.addToQueue(user.id);
+      await matchingService.updateMatchingStatus(user.id, "available");
 
       return {
         state: "found_partial",
         matches: [
           {
-            id: compatibleUsers[0].id,
-            name: compatibleUsers[0].name || "Compatible User", // Using 'name' instead of 'full_name'
+            id: matchingResult.matches[0].id,
+            name: matchingResult.matches[0].name || "Compatible User",
             compatibility: 70 + Math.floor(Math.random() * 15), // 70-85%
             shared_goals: [userData.goal],
           },

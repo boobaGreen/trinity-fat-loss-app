@@ -231,4 +231,135 @@ export const matchingService = {
     const { error } = await supabase.rpc("update_queue_wait_times");
     if (error) throw error;
   },
+
+  // 🆕 CREATE TRIO - The missing function!
+  async createTrio(users: {
+    user1_id: string;
+    user2_id: string;
+    user3_id: string;
+    commonData: {
+      weight_goal: string;
+      fitness_level: string;
+      common_language: string;
+      age_range_min: number;
+      age_range_max: number;
+    };
+  }): Promise<string> {
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(startDate.getDate() + 90); // 90-day program
+
+    // Create trio record
+    const { data: trio, error: trioError } = await supabase
+      .from("trios")
+      .insert({
+        user1_id: users.user1_id,
+        user2_id: users.user2_id,
+        user3_id: users.user3_id,
+        common_language: users.commonData.common_language,
+        weight_goal: users.commonData.weight_goal,
+        fitness_level: users.commonData.fitness_level,
+        age_range_min: users.commonData.age_range_min,
+        age_range_max: users.commonData.age_range_max,
+        compatibility_score: 85, // Default good compatibility
+        start_date: startDate.toISOString().split("T")[0],
+        end_date: endDate.toISOString().split("T")[0],
+        status: "active",
+        current_day: 1,
+      })
+      .select()
+      .single();
+
+    if (trioError) throw trioError;
+
+    // Update all 3 users
+    const allUserIds = [users.user1_id, users.user2_id, users.user3_id];
+
+    for (const userId of allUserIds) {
+      // Update user status to in_trio
+      await this.updateMatchingStatus(userId, "in_trio");
+
+      // Set current_trio_id
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({
+          current_trio_id: trio.id,
+          last_matched_at: new Date().toISOString(),
+        })
+        .eq("id", userId);
+
+      if (updateError) throw updateError;
+
+      // Remove from matching queue
+      await this.removeFromQueue(userId);
+    }
+
+    console.log("🎉 TRIO CREATED SUCCESSFULLY!", trio.id);
+    return trio.id;
+  },
+
+  // 🆕 PROCESS MATCHING - Complete matching logic
+  async processMatching(
+    userId: string,
+    userData: {
+      weight_goal: string;
+      fitness_level: string;
+      age: number;
+      languages: string[];
+    }
+  ): Promise<{
+    status: "queued" | "matched";
+    trioId?: string;
+    matches?: UserProfile[];
+  }> {
+    // Find potential matches
+    const matches = await this.findMatches({
+      ...userData,
+      userId,
+    });
+
+    console.log(
+      `🔍 Found ${matches.length} potential matches for user ${userId}`
+    );
+
+    if (matches.length >= 2) {
+      // We have enough users to form a trio!
+
+      // Get user profiles for all 3 users
+      const { data: allUsers, error } = await supabase
+        .from("users")
+        .select("*")
+        .in("id", [userId, matches[0].id, matches[1].id]);
+
+      if (error) throw error;
+
+      if (allUsers && allUsers.length === 3) {
+        // Calculate common data
+        const ages = allUsers.map((u) => u.age);
+        const commonLanguage =
+          userData.languages.find((lang) =>
+            allUsers.every((u) => u.languages.includes(lang))
+          ) || userData.languages[0];
+
+        // Create the trio
+        const trioId = await this.createTrio({
+          user1_id: userId,
+          user2_id: matches[0].id,
+          user3_id: matches[1].id,
+          commonData: {
+            weight_goal: userData.weight_goal,
+            fitness_level: userData.fitness_level,
+            common_language: commonLanguage,
+            age_range_min: Math.min(...ages),
+            age_range_max: Math.max(...ages),
+          },
+        });
+
+        return { status: "matched", trioId };
+      }
+    }
+
+    // Not enough matches, stay in queue
+    return { status: "queued", matches };
+  },
 };
