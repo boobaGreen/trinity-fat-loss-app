@@ -6,18 +6,6 @@ import {
 } from "../../lib/services/dailyTasks";
 import { supabase } from "../../lib/supabase";
 
-interface TaskHistoryEntry {
-  id: string;
-  task_id: string;
-  user_id: string;
-  action_type: "complete" | "uncomplete" | "modify" | "freeze";
-  old_value: Record<string, unknown>;
-  new_value: Record<string, unknown>;
-  modified_at: string;
-  modified_by: string;
-  reason?: string;
-}
-
 interface Task extends DbDailyTask {
   name: string;
   emoji: string;
@@ -40,9 +28,6 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isEditable, setIsEditable] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [taskHistory, setTaskHistory] = useState<TaskHistoryEntry[]>([]);
 
   // Formatta la data in modo leggibile
   const formattedDate = new Intl.DateTimeFormat("it-IT", {
@@ -65,7 +50,7 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
     [onTasksUpdated]
   );
 
-  // Aggiunge metadati UI ai task dal database
+  // Aggiunge metadati UI aos task dal database
   const enrichTasksWithUIData = useCallback(
     (dbTasks: DbDailyTask[]): Task[] => {
       return dbTasks.map((task) => {
@@ -315,7 +300,7 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
     setSaving(true);
 
     try {
-      await dailyTasksService.updateTaskStatus(taskId, !task.completed, user);
+      await dailyTasksService.updateTaskStatus(taskId, !task.completed);
 
       // Aggiorna l'UI
       const updatedTasks = tasks.map((t) =>
@@ -325,28 +310,15 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
       updateCompletionStats(updatedTasks);
     } catch (err) {
       console.error("Error saving task:", err);
-      setError("Errore nel salvataggio dei dati");
+      // Gestione corretta dell'errore di tipo unknown
+      const errorMessage = err instanceof Error ? err.message : String(err);
+
+      // Non mostrare errore se è solo un doppio click (stato identico)
+      if (!errorMessage.includes("no longer editable")) {
+        setError("Errore nel salvataggio dei dati");
+      }
     } finally {
       setSaving(false);
-    }
-  };
-
-  // Visualizza lo storico del task
-  const viewTaskHistory = async (task: Task) => {
-    try {
-      const history = await dailyTasksService.getTaskHistory(task.id);
-      // Converti TaskHistory[] in TaskHistoryEntry[]
-      const convertedHistory: TaskHistoryEntry[] = history.map((item) => ({
-        ...item,
-        old_value: item.old_value as unknown as Record<string, unknown>,
-        new_value: item.new_value as unknown as Record<string, unknown>,
-      }));
-      setTaskHistory(convertedHistory);
-      setSelectedTask(task);
-      setShowHistory(true);
-    } catch (err) {
-      console.error("Error fetching history:", err);
-      setError("Impossibile caricare lo storico");
     }
   };
 
@@ -413,61 +385,9 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
                 </span>
               </div>
             </div>
-            <button
-              onClick={() => viewTaskHistory(task)}
-              className="text-gray-400 hover:text-gray-600"
-              title="View history"
-            >
-              📋
-            </button>
           </div>
         ))}
       </div>
-
-      {/* Modal per lo storico */}
-      {showHistory && selectedTask && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg p-6 max-w-lg w-full max-h-[80vh] overflow-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">
-                {selectedTask.emoji} {selectedTask.name} History
-              </h3>
-              <button
-                onClick={() => setShowHistory(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {taskHistory.map((entry) => (
-                <div key={entry.id} className="border-b border-gray-100 pb-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="font-medium">
-                      {entry.action_type === "complete"
-                        ? "✅ Completed"
-                        : entry.action_type === "uncomplete"
-                        ? "❌ Uncompleted"
-                        : entry.action_type === "freeze"
-                        ? "🔒 Auto-frozen"
-                        : "📝 Modified"}
-                    </span>
-                    <span className="text-gray-500">
-                      {new Date(entry.modified_at).toLocaleString()}
-                    </span>
-                  </div>
-                  {entry.reason && (
-                    <p className="text-sm text-gray-600 mt-1">
-                      Note: {entry.reason}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       {!isEditable && (
         <div className="text-sm text-gray-500 text-center mt-4">
