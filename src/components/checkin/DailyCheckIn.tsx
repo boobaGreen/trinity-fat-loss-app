@@ -17,7 +17,7 @@ interface Task {
   // Metadati UI che teniamo in memoria
   name: string;
   emoji: string;
-  type: "boolean" | "number";
+  description: string; // Descrizione con il target
 }
 
 // Interface per i task dal database
@@ -81,49 +81,55 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
       // Metadati UI basati sul tipo di task
       let name = "";
       let emoji = "";
-      let type: "boolean" | "number" = "boolean";
+      let description = "";
 
       switch (task.task_type) {
         case "deficit_calorico":
           name = "Deficit Calorico";
           emoji = "🍽️";
+          description = "Mantieni un deficit calorico";
           break;
         case "protein_target":
           name = "Protein Target";
           emoji = "💪";
+          description = "Raggiungi il tuo target proteico";
           break;
         case "hydration":
           name = "Hydration";
           emoji = "💧";
+          description = "Bevi almeno 2.5 litri di acqua";
           break;
         case "meal_logging":
           name = "Meal Logging";
           emoji = "📝";
+          description = "Registra tutti i tuoi pasti";
           break;
         case "sleep_quality":
           name = "Sleep Quality";
           emoji = "😴";
+          description = "Dormi almeno 8 ore";
           break;
         case "steps":
           name = "Steps";
           emoji = "👟";
-          type = "number";
+          description = "Raggiungi min. 8000 passi";
           break;
         case "cardio":
           name = "Cardio";
           emoji = "❤️";
-          type = "number";
+          description = "Completa min. 20 min di cardio";
           break;
         default:
           name = task.task_type;
           emoji = "✅";
+          description = "";
       }
 
       return {
         ...task,
         name,
         emoji,
-        type,
+        description,
       } as Task;
     });
   }, []);
@@ -170,9 +176,9 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
         task_type: "hydration",
         completed: false,
         completed_at: null,
-        target_value: null,
+        target_value: 2.5,
         actual_value: null,
-        target_unit: null,
+        target_unit: "lt",
         notes: null,
         reminder_sent: false,
         celebration_notification_sent: false,
@@ -198,9 +204,9 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
         task_type: "sleep_quality",
         completed: false,
         completed_at: null,
-        target_value: null,
+        target_value: 8,
         actual_value: null,
-        target_unit: null,
+        target_unit: "ore",
         notes: null,
         reminder_sent: false,
         celebration_notification_sent: false,
@@ -213,7 +219,7 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
         completed: false,
         completed_at: null,
         target_value: 8000,
-        actual_value: 0,
+        actual_value: null,
         target_unit: "steps",
         notes: null,
         reminder_sent: false,
@@ -227,7 +233,7 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
         completed: false,
         completed_at: null,
         target_value: 20,
-        actual_value: 0,
+        actual_value: null,
         target_unit: "min",
         notes: null,
         reminder_sent: false,
@@ -316,7 +322,7 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
     if (!user) return;
 
     const task = tasks.find((t) => t.id === taskId);
-    if (!task || task.type !== "boolean") return;
+    if (!task) return;
 
     const updatedTask = {
       ...task,
@@ -339,55 +345,6 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
         .update({
           completed: updatedTask.completed,
           completed_at: updatedTask.completed_at,
-        })
-        .eq("id", taskId);
-
-      if (error) throw error;
-    } catch (err) {
-      console.error("Error saving task:", err);
-      setError("Errore nel salvataggio dei dati");
-
-      // Ripristina lo stato precedente in caso di errore
-      setTasks(tasks);
-      updateCompletionStats(tasks);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Gestisce l'aggiornamento dei task numerici
-  const updateNumericTask = async (taskId: string, value: number) => {
-    if (!user) return;
-
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task || task.type !== "number") return;
-
-    const target = task.target_value || 0;
-    const completed = value >= target;
-
-    const updatedTask = {
-      ...task,
-      completed,
-      completed_at: completed ? new Date().toISOString() : null,
-      actual_value: value,
-    };
-
-    // Aggiorna l'UI immediatamente
-    const updatedTasks = tasks.map((t) => (t.id === taskId ? updatedTask : t));
-
-    setTasks(updatedTasks);
-    updateCompletionStats(updatedTasks);
-
-    // Salva nel database
-    setSaving(true);
-
-    try {
-      const { error } = await supabase
-        .from("daily_tasks")
-        .update({
-          completed: updatedTask.completed,
-          completed_at: updatedTask.completed_at,
-          actual_value: updatedTask.actual_value,
         })
         .eq("id", taskId);
 
@@ -441,61 +398,29 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
       <div className="space-y-3">
         {tasks.map((task) => (
           <div key={task.id} className="flex items-center space-x-3">
-            {task.type === "boolean" ? (
-              <>
-                <button
-                  onClick={() => toggleTask(task.id)}
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-sm shadow-sm transition-colors duration-200 ${
-                    task.completed
-                      ? "bg-gradient-to-br from-green-400 to-green-500 text-white"
-                      : "bg-gray-200/80 text-gray-400 hover:bg-gray-300"
-                  }`}
+            <button
+              onClick={() => toggleTask(task.id)}
+              className={`w-6 h-6 rounded-full flex items-center justify-center text-sm shadow-sm transition-colors duration-200 ${
+                task.completed
+                  ? "bg-gradient-to-br from-green-400 to-green-500 text-white"
+                  : "bg-gray-200/80 text-gray-400 hover:bg-gray-300"
+              }`}
+            >
+              {task.completed ? "✓" : ""}
+            </button>
+            <div className="flex items-center space-x-2 flex-1">
+              <span className="text-lg">{task.emoji}</span>
+              <div className="flex flex-col">
+                <span
+                  className={task.completed ? "text-gray-900" : "text-gray-500"}
                 >
-                  {task.completed ? "✓" : ""}
-                </button>
-                <div className="flex items-center space-x-2 flex-1">
-                  <span className="text-lg">{task.emoji}</span>
-                  <span
-                    className={
-                      task.completed ? "text-gray-900" : "text-gray-500"
-                    }
-                  >
-                    {task.name}
-                  </span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div
-                  className={`w-6 h-6 rounded-full flex items-center justify-center text-sm shadow-sm ${
-                    task.completed
-                      ? "bg-gradient-to-br from-green-400 to-green-500 text-white"
-                      : "bg-gray-200/80 text-gray-400"
-                  }`}
-                >
-                  {task.completed ? "✓" : ""}
-                </div>
-                <div className="flex items-center space-x-2 flex-1">
-                  <span className="text-lg">{task.emoji}</span>
-                  <span className="text-gray-900">{task.name}</span>
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="number"
-                    value={task.actual_value || 0}
-                    onChange={(e) =>
-                      updateNumericTask(task.id, parseInt(e.target.value) || 0)
-                    }
-                    className="w-16 h-8 rounded border border-gray-300 text-center text-sm"
-                    min="0"
-                    max={task.target_value ? task.target_value * 2 : 9999}
-                  />
-                  <span className="ml-1 text-sm text-gray-500">
-                    /{task.target_value} {task.target_unit}
-                  </span>
-                </div>
-              </>
-            )}
+                  {task.name}
+                </span>
+                <span className="text-xs text-gray-500">
+                  {task.description}
+                </span>
+              </div>
+            </div>
           </div>
         ))}
       </div>
