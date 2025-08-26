@@ -1,46 +1,32 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../../hooks/useAuth";
+import {
+  dailyTasksService,
+  type DailyTask as DbDailyTask,
+} from "../../lib/services/dailyTasks";
 import { supabase } from "../../lib/supabase";
 
-interface Task {
+interface TaskHistoryEntry {
   id: string;
+  task_id: string;
   user_id: string;
-  trio_id: string;
-  task_date: string;
-  task_type: string;
-  completed: boolean;
-  completed_at: string | null;
-  target_value: number | null;
-  actual_value: number | null;
-  target_unit: string | null;
-  notes: string | null;
-  // Metadati UI che teniamo in memoria
-  name: string;
-  emoji: string;
-  description: string; // Descrizione con il target
+  action_type: "complete" | "uncomplete" | "modify" | "freeze";
+  old_value: Record<string, unknown>;
+  new_value: Record<string, unknown>;
+  modified_at: string;
+  modified_by: string;
+  reason?: string;
 }
 
-// Interface per i task dal database
-interface DbTask {
-  id: string;
-  user_id: string;
-  trio_id: string;
-  task_date: string;
-  task_type: string;
-  completed: boolean;
-  completed_at: string | null;
-  target_value: number | null;
-  actual_value: number | null;
-  target_unit: string | null;
-  notes: string | null;
-  reminder_sent?: boolean;
-  celebration_notification_sent?: boolean;
-  [key: string]: unknown; // Per altri campi che potrebbero essere presenti
+interface Task extends DbDailyTask {
+  name: string;
+  emoji: string;
+  description: string;
 }
 
 interface DailyCheckInProps {
   onTasksUpdated?: (completedCount: number, totalCount: number) => void;
-  date?: Date; // Opzionale, default a oggi
+  date?: Date;
 }
 
 export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
@@ -53,6 +39,10 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
   const [tasks, setTasks] = useState<Task[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isEditable, setIsEditable] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [taskHistory, setTaskHistory] = useState<TaskHistoryEntry[]>([]);
 
   // Formatta la data in modo leggibile
   const formattedDate = new Intl.DateTimeFormat("it-IT", {
@@ -64,7 +54,7 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
   // Formatta la data per il database (YYYY-MM-DD)
   const formattedDateForDB = date.toISOString().split("T")[0];
 
-  // Estrai updateCompletionStats in una funzione useCallback per evitare l'avviso di dipendenze
+  // Estrai updateCompletionStats in una funzione useCallback
   const updateCompletionStats = useCallback(
     (currentTasks: Task[]) => {
       if (onTasksUpdated) {
@@ -76,70 +66,72 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
   );
 
   // Aggiunge metadati UI ai task dal database
-  const enrichTasksWithUIData = useCallback((dbTasks: DbTask[]): Task[] => {
-    return dbTasks.map((task) => {
-      // Metadati UI basati sul tipo di task
-      let name = "";
-      let emoji = "";
-      let description = "";
+  const enrichTasksWithUIData = useCallback(
+    (dbTasks: DbDailyTask[]): Task[] => {
+      return dbTasks.map((task) => {
+        let name = "";
+        let emoji = "";
+        let description = "";
 
-      switch (task.task_type) {
-        case "deficit_calorico":
-          name = "Deficit Calorico";
-          emoji = "🍽️";
-          description = "Mantieni un deficit calorico";
-          break;
-        case "protein_target":
-          name = "Protein Target";
-          emoji = "💪";
-          description = "Raggiungi il tuo target proteico";
-          break;
-        case "hydration":
-          name = "Hydration";
-          emoji = "💧";
-          description = "Bevi almeno 2.5 litri di acqua";
-          break;
-        case "meal_logging":
-          name = "Meal Logging";
-          emoji = "📝";
-          description = "Registra tutti i tuoi pasti";
-          break;
-        case "sleep_quality":
-          name = "Sleep Quality";
-          emoji = "😴";
-          description = "Dormi almeno 8 ore";
-          break;
-        case "steps":
-          name = "Steps";
-          emoji = "👟";
-          description = "Raggiungi min. 8000 passi";
-          break;
-        case "cardio":
-          name = "Cardio";
-          emoji = "❤️";
-          description = "Completa min. 20 min di cardio";
-          break;
-        default:
-          name = task.task_type;
-          emoji = "✅";
-          description = "";
-      }
+        switch (task.task_type) {
+          case "deficit_calorico":
+            name = "Deficit Calorico";
+            emoji = "🍽️";
+            description = "Mantieni un deficit calorico";
+            break;
+          case "protein_target":
+            name = "Protein Target";
+            emoji = "💪";
+            description = "Raggiungi il tuo target proteico";
+            break;
+          case "hydration":
+            name = "Hydration";
+            emoji = "💧";
+            description = "Bevi almeno 2.5 litri di acqua";
+            break;
+          case "meal_logging":
+            name = "Meal Logging";
+            emoji = "📝";
+            description = "Registra tutti i tuoi pasti";
+            break;
+          case "sleep_quality":
+            name = "Sleep Quality";
+            emoji = "😴";
+            description = "Dormi almeno 8 ore";
+            break;
+          case "steps":
+            name = "Steps";
+            emoji = "👟";
+            description = "Raggiungi min. 8000 passi";
+            break;
+          case "cardio":
+            name = "Cardio";
+            emoji = "❤️";
+            description = "Completa min. 20 min di cardio";
+            break;
+          default:
+            name = task.task_type;
+            emoji = "✅";
+            description = "";
+        }
 
-      return {
-        ...task,
-        name,
-        emoji,
-        description,
-      } as Task;
-    });
-  }, []);
+        return {
+          ...task,
+          name,
+          emoji,
+          description,
+        } as Task;
+      });
+    },
+    []
+  );
 
   // Crea i task predefiniti per una nuova giornata
   const createDefaultDailyTasks = async (
     userId: string,
     trioId: string,
     dateString: string
-  ): Promise<DbTask[]> => {
+  ): Promise<DbDailyTask[]> => {
     const defaultTasks = [
       {
         user_id: userId,
@@ -178,7 +170,7 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
         completed_at: null,
         target_value: 2.5,
         actual_value: null,
-        target_unit: "lt",
+        target_unit: "litri",
         notes: null,
         reminder_sent: false,
         celebration_notification_sent: false,
@@ -248,18 +240,19 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
 
     if (error) throw error;
 
-    return data as DbTask[];
+    return data || [];
   };
 
   // Recupera i task dal database
   useEffect(() => {
-    // Evita chiamate multiple
     if (isInitialized || !user) return;
 
     const fetchTasks = async () => {
       setLoading(true);
 
       try {
+        setIsEditable(dailyTasksService.isDateEditable(date));
+
         // Recupera il trio_id dell'utente
         const { data: userProfile, error: userError } = await supabase
           .from("users")
@@ -272,14 +265,8 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
           throw new Error("Utente non associato ad un trio");
         }
 
-        // Recupera i task giornalieri per l'utente e la data specificata
-        const { data, error } = await supabase
-          .from("daily_tasks")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("task_date", formattedDateForDB);
-
-        if (error) throw error;
+        // Recupera i task giornalieri
+        const data = await dailyTasksService.getDailyTasks(user.id, date);
 
         // Se non ci sono task per oggi, crea i task predefiniti
         if (!data || data.length === 0) {
@@ -311,53 +298,55 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
     fetchTasks();
   }, [
     user,
+    date,
     formattedDateForDB,
     updateCompletionStats,
     enrichTasksWithUIData,
     isInitialized,
   ]);
 
-  // Gestisce il toggle dei task booleani
+  // Gestisce il toggle dei task
   const toggleTask = async (taskId: string) => {
-    if (!user) return;
+    if (!user || !isEditable) return;
 
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
 
-    const updatedTask = {
-      ...task,
-      completed: !task.completed,
-      completed_at: !task.completed ? new Date().toISOString() : null,
-    };
-
-    // Aggiorna l'UI immediatamente
-    const updatedTasks = tasks.map((t) => (t.id === taskId ? updatedTask : t));
-
-    setTasks(updatedTasks);
-    updateCompletionStats(updatedTasks);
-
-    // Salva nel database
     setSaving(true);
 
     try {
-      const { error } = await supabase
-        .from("daily_tasks")
-        .update({
-          completed: updatedTask.completed,
-          completed_at: updatedTask.completed_at,
-        })
-        .eq("id", taskId);
+      await dailyTasksService.updateTaskStatus(taskId, !task.completed, user);
 
-      if (error) throw error;
+      // Aggiorna l'UI
+      const updatedTasks = tasks.map((t) =>
+        t.id === taskId ? { ...t, completed: !t.completed } : t
+      );
+      setTasks(updatedTasks);
+      updateCompletionStats(updatedTasks);
     } catch (err) {
       console.error("Error saving task:", err);
       setError("Errore nel salvataggio dei dati");
-
-      // Ripristina lo stato precedente in caso di errore
-      setTasks(tasks);
-      updateCompletionStats(tasks);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Visualizza lo storico del task
+  const viewTaskHistory = async (task: Task) => {
+    try {
+      const history = await dailyTasksService.getTaskHistory(task.id);
+      // Converti TaskHistory[] in TaskHistoryEntry[]
+      const convertedHistory: TaskHistoryEntry[] = history.map((item) => ({
+        ...item,
+        old_value: item.old_value as unknown as Record<string, unknown>,
+        new_value: item.new_value as unknown as Record<string, unknown>,
+      }));
+      setTaskHistory(convertedHistory);
+      setSelectedTask(task);
+      setShowHistory(true);
+    } catch (err) {
+      console.error("Error fetching history:", err);
+      setError("Impossibile caricare lo storico");
     }
   };
 
@@ -400,10 +389,13 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
           <div key={task.id} className="flex items-center space-x-3">
             <button
               onClick={() => toggleTask(task.id)}
+              disabled={!isEditable}
               className={`w-6 h-6 rounded-full flex items-center justify-center text-sm shadow-sm transition-colors duration-200 ${
                 task.completed
                   ? "bg-gradient-to-br from-green-400 to-green-500 text-white"
-                  : "bg-gray-200/80 text-gray-400 hover:bg-gray-300"
+                  : isEditable
+                  ? "bg-gray-200/80 text-gray-400 hover:bg-gray-300"
+                  : "bg-gray-100 text-gray-300 cursor-not-allowed"
               }`}
             >
               {task.completed ? "✓" : ""}
@@ -421,9 +413,68 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
                 </span>
               </div>
             </div>
+            <button
+              onClick={() => viewTaskHistory(task)}
+              className="text-gray-400 hover:text-gray-600"
+              title="View history"
+            >
+              📋
+            </button>
           </div>
         ))}
       </div>
+
+      {/* Modal per lo storico */}
+      {showHistory && selectedTask && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg p-6 max-w-lg w-full max-h-[80vh] overflow-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">
+                {selectedTask.emoji} {selectedTask.name} History
+              </h3>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {taskHistory.map((entry) => (
+                <div key={entry.id} className="border-b border-gray-100 pb-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">
+                      {entry.action_type === "complete"
+                        ? "✅ Completed"
+                        : entry.action_type === "uncomplete"
+                        ? "❌ Uncompleted"
+                        : entry.action_type === "freeze"
+                        ? "🔒 Auto-frozen"
+                        : "📝 Modified"}
+                    </span>
+                    <span className="text-gray-500">
+                      {new Date(entry.modified_at).toLocaleString()}
+                    </span>
+                  </div>
+                  {entry.reason && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      Note: {entry.reason}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isEditable && (
+        <div className="text-sm text-gray-500 text-center mt-4">
+          ℹ️ Tasks can only be modified on the same day or before 3:00 AM the
+          next day
+        </div>
+      )}
     </div>
   );
 };
