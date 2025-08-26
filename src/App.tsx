@@ -7,7 +7,6 @@ import { ForgotPassword } from "./components/auth/ForgotPassword";
 import { ResetPassword } from "./components/auth/ResetPassword";
 import { DataCollectionScreen } from "./components/onboarding/DataCollectionScreen";
 import { FitnessLevelScreen } from "./components/onboarding/FitnessLevelScreen";
-
 import { Dashboard } from "./components/dashboard/Dashboard";
 import { useAuth } from "./hooks/useAuth";
 import Matching from "./components/onboarding/Matching";
@@ -25,7 +24,6 @@ type AppScreen =
   | "matching"
   | "dashboard";
 
-// ✅ Aggiunto tipo per i dati utente dal form
 interface UserData {
   name: string;
   age: number;
@@ -36,12 +34,7 @@ interface UserData {
 interface UserProgress {
   name: string;
   loginMethod: string;
-  userData: {
-    name: string;
-    age: number;
-    languages: string[];
-    weightGoal: string;
-  } | null;
+  userData: UserData | null;
   fitnessLevel: string;
 }
 
@@ -58,8 +51,6 @@ function App() {
     userData: null,
     fitnessLevel: "",
   });
-
-  // New state to track user status
   const [userStatus, setUserStatus] = useState<{
     hasProfile: boolean;
     isInQueue: boolean;
@@ -72,13 +63,10 @@ function App() {
     loading: true,
   });
 
-  // 🔐 Hook per l'autenticazione
   const { user, loading } = useAuth();
 
-  // Check user status in database
   const checkUserStatus = async (userId: string) => {
     try {
-      // Check if user has complete profile
       const { data: userProfile, error: profileError } = await supabase
         .from("users")
         .select(
@@ -88,7 +76,6 @@ function App() {
         .single();
 
       if (profileError) {
-        console.log("User profile not found, needs onboarding");
         setUserStatus({
           hasProfile: false,
           isInQueue: false,
@@ -98,7 +85,6 @@ function App() {
         return;
       }
 
-      // Check if user is in matching queue
       let isInQueue = false;
       try {
         const position = await matchingService.getQueuePosition(userId);
@@ -107,10 +93,7 @@ function App() {
         isInQueue = false;
       }
 
-      // Check if user is in a trio (simplified check for now)
       const isInTrio = userProfile.matching_status === "in_trio";
-
-      // Check if profile is complete
       const hasCompleteProfile = !!(
         userProfile.name &&
         userProfile.age &&
@@ -125,14 +108,8 @@ function App() {
         isInTrio,
         loading: false,
       });
-
-      console.log("👤 User status:", {
-        hasProfile: hasCompleteProfile,
-        isInQueue,
-        isInTrio,
-      });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
-      console.error("Error checking user status:", error);
       setUserStatus({
         hasProfile: false,
         isInQueue: false,
@@ -142,59 +119,41 @@ function App() {
     }
   };
 
-  // Check for password reset on page load
   useEffect(() => {
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const accessToken = hashParams.get("access_token");
     const type = hashParams.get("type");
-
     if (type === "recovery" && accessToken) {
       setCurrentScreen("reset-password");
     }
   }, []);
 
-  // 🎯 Smart routing based on user authentication and status
   useEffect(() => {
     if (!loading && user) {
-      console.log("🔐 User authenticated:", user.email);
-
-      // Check if user needs email verification
       if (user.email_confirmed_at === null) {
-        console.log("📧 User needs email verification");
         setCurrentScreen("email-verification");
         return;
       }
-
-      // Check user status in database
       checkUserStatus(user.id);
     } else if (!loading && !user) {
-      // User not authenticated, go to landing
       setCurrentScreen("landing");
     }
   }, [user, loading]);
 
-  // Route based on user status
   useEffect(() => {
     if (!userStatus.loading && user) {
       if (userStatus.isInTrio) {
-        console.log("🎯 User has trio, going to dashboard");
         setCurrentScreen("dashboard");
       } else if (userStatus.isInQueue) {
-        console.log("🔍 User in matching queue, going to dashboard");
         setCurrentScreen("dashboard");
       } else if (userStatus.hasProfile) {
-        console.log("👤 User has profile, going to dashboard");
         setCurrentScreen("dashboard");
       } else {
-        console.log("🏠 User needs onboarding, showing landing page first");
-        // User doesn't have complete profile, show landing page first
-        // so they understand what Trinity is before starting onboarding
         setCurrentScreen("landing");
       }
     }
   }, [userStatus, user]);
 
-  // 🎯 Handler per step dell'onboarding
   const handleOnboardingStep = (
     screen: AppScreen,
     data?: Partial<UserProgress>
@@ -205,9 +164,7 @@ function App() {
     }
   };
 
-  // 🎯 Handler per navigazione diretta all'onboarding (chiamato dai CTA della Landing)
   const handleStartOnboarding = () => {
-    // If user is already authenticated but needs onboarding, prepare OAuth data
     if (user) {
       setUserProgress((prev) => ({
         ...prev,
@@ -217,13 +174,11 @@ function App() {
       }));
       setCurrentScreen("data-collection");
     } else {
-      // User not authenticated, show welcome screen first
       setCurrentScreen("welcome");
     }
   };
 
   const renderCurrentScreen = () => {
-    // 🔄 Loading screen durante l'autenticazione iniziale
     if (loading) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
@@ -241,7 +196,6 @@ function App() {
     switch (currentScreen) {
       case "landing":
         return <LandingPage onStartOnboarding={handleStartOnboarding} />;
-
       case "welcome":
         return (
           <WelcomeScreen
@@ -263,7 +217,6 @@ function App() {
             onBack={() => setCurrentScreen("landing")}
           />
         );
-
       case "email-auth":
         return (
           <EmailAuth
@@ -281,7 +234,6 @@ function App() {
             onForgotPassword={() => setCurrentScreen("forgot-password")}
           />
         );
-
       case "email-verification":
         return (
           <EmailVerification
@@ -294,7 +246,6 @@ function App() {
             onBack={() => setCurrentScreen("email-auth")}
           />
         );
-
       case "forgot-password":
         return (
           <ForgotPassword
@@ -305,7 +256,6 @@ function App() {
             onBack={() => setCurrentScreen("email-auth")}
           />
         );
-
       case "reset-password":
         return (
           <ResetPassword
@@ -319,7 +269,6 @@ function App() {
             }}
           />
         );
-
       case "data-collection":
         return (
           <DataCollectionScreen
@@ -330,7 +279,6 @@ function App() {
             onBack={() => setCurrentScreen("welcome")}
           />
         );
-
       case "fitness-level":
         return (
           <FitnessLevelScreen
@@ -341,7 +289,6 @@ function App() {
             onBack={() => setCurrentScreen("data-collection")}
           />
         );
-
       case "matching":
         return (
           <Matching
@@ -353,7 +300,6 @@ function App() {
               age: userProgress.userData?.age || 28,
             }}
             onComplete={() => {
-              // Force refresh user status after returning from matching
               if (user) {
                 checkUserStatus(user.id);
               }
@@ -364,29 +310,12 @@ function App() {
               });
               setCurrentScreen("dashboard");
             }}
-            onModifyData={() => {
-              // User wants to modify their data - go directly to data collection
-              // Keep the user logged in but reset their progress data
-              setUserProgress({
-                name: userProgress.name, // Keep existing name
-                loginMethod: userProgress.loginMethod, // Keep login method
-                userData: null, // Reset user data
-                fitnessLevel: "", // Reset fitness level
-              });
-              setMatchingState({
-                skipAnimations: false,
-                goToResults: false,
-                isModifying: true,
-              });
-              setCurrentScreen("data-collection");
-            }}
             skipAnimations={matchingState.skipAnimations}
             goToResults={
               matchingState.goToResults && !matchingState.isModifying
             }
           />
         );
-
       case "dashboard":
         return (
           <Dashboard
@@ -398,7 +327,6 @@ function App() {
               age: userProgress.userData?.age || 28,
             }}
             onGoToMatching={async () => {
-              // Load user data from database before going to matching
               if (user) {
                 try {
                   const { data: dbUserData, error } = await supabase
@@ -406,11 +334,8 @@ function App() {
                     .select("*")
                     .eq("id", user.id)
                     .single();
-
                   if (error) throw error;
-
                   if (dbUserData) {
-                    // Update userProgress with real database data
                     setUserProgress({
                       name: dbUserData.name || userProgress.name,
                       loginMethod: userProgress.loginMethod,
@@ -435,7 +360,6 @@ function App() {
                   console.error("Error loading user data:", error);
                 }
               }
-
               setMatchingState({
                 skipAnimations: true,
                 goToResults: true,
@@ -454,7 +378,6 @@ function App() {
             }}
           />
         );
-
       default:
         return <LandingPage onStartOnboarding={handleStartOnboarding} />;
     }
@@ -463,7 +386,6 @@ function App() {
   return (
     <div className="App">
       {renderCurrentScreen()}
-
       {/* Development Navigation (remove in production) */}
       {process.env.NODE_ENV === "development" && (
         <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 text-xs z-50">

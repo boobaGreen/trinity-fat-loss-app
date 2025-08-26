@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+
 import { supabase, matchingService } from "../../lib/supabase";
-import { UserMenu } from "../common/UserMenu";
 import { useAuth } from "../../hooks/useAuth";
 
 interface MatchingData {
@@ -14,7 +14,6 @@ interface MatchingData {
 interface MatchingProps {
   userData: MatchingData;
   onComplete: () => void;
-  onModifyData?: () => void; // New callback for modifying data
   skipAnimations?: boolean;
   goToResults?: boolean;
 }
@@ -32,60 +31,34 @@ interface MatchingResult {
   flexible_criteria?: string[];
 }
 
-// 🚀 REAL DATABASE-DRIVEN MATCHING SYSTEM
 const performRealMatching = async (
   userData: MatchingData
 ): Promise<MatchingResult> => {
   try {
-    // 1. Get current authenticated user
     const {
       data: { user },
       error: authError,
     } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error("User not authenticated");
-    }
+    if (authError || !user) throw new Error("User not authenticated");
 
-    // 2. DEBUG: Log dei dati ricevuti
-    console.log("🔍 DEBUG - userData ricevuto:", userData);
-    console.log("🔍 DEBUG - name:", userData.name);
-    console.log("🔍 DEBUG - goal:", userData.goal);
-    console.log("🔍 DEBUG - level:", userData.level);
-
-    // Prepare data for upsert
     const upsertData = {
       id: user.id,
       email: user.email || "",
-      name: userData.name, // Required field - using data from onboarding
-      age: userData.age, // Required field - age from onboarding
-      languages: userData.languages, // Required field - languages from onboarding
-      weight_goal: userData.goal, // Required field - weight goal from onboarding
-      fitness_level: userData.level, // Required field - fitness level from onboarding
-      // Add only the columns that definitely exist
+      name: userData.name,
+      age: userData.age,
+      languages: userData.languages,
+      weight_goal: userData.goal,
+      fitness_level: userData.level,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
-    console.log("🔍 DEBUG - Dati per upsert:", upsertData);
-
-    // 2. Ensure user exists in users table (upsert user profile with basic info)
     const { error: upsertError } = await supabase
       .from("users")
-      .upsert(upsertData, {
-        onConflict: "id", // Only use the primary key constraint
-        ignoreDuplicates: false, // Update existing records
-      });
+      .upsert(upsertData, { onConflict: "id" });
 
-    if (upsertError) {
-      console.error("Error upserting user:");
-      console.error("Code:", upsertError.code);
-      console.error("Message:", upsertError.message);
-      console.error("Details:", upsertError.details);
-      console.error("Full error object:", JSON.stringify(upsertError, null, 2));
-      throw upsertError;
-    }
+    if (upsertError) throw upsertError;
 
-    // 3. Process complete matching with trio creation
     const matchingResult = await matchingService.processMatching(user.id, {
       weight_goal: userData.goal,
       fitness_level: userData.level,
@@ -93,54 +66,46 @@ const performRealMatching = async (
       languages: userData.languages,
     });
 
-    // 4. Simulate realistic processing time (2-5 seconds)
     await new Promise((resolve) =>
       setTimeout(resolve, 2000 + Math.random() * 3000)
     );
 
-    // 5. Process matching results based on REAL database data
     if (matchingResult.status === "matched") {
-      // Perfect match found - trio created successfully!
       return {
         state: "matched",
         matches: [
           {
             id: "matched-user-1",
             name: "Compatible User 1",
-            compatibility: 85 + Math.floor(Math.random() * 15), // 85-100%
+            compatibility: 85 + Math.floor(Math.random() * 15),
             shared_goals: [userData.goal],
           },
           {
             id: "matched-user-2",
             name: "Compatible User 2",
-            compatibility: 85 + Math.floor(Math.random() * 15), // 85-100%
+            compatibility: 85 + Math.floor(Math.random() * 15),
             shared_goals: [userData.goal],
           },
         ],
       };
     } else if (matchingResult.matches && matchingResult.matches.length === 1) {
-      // Partial match found - 1 compatible user
-      // IMPORTANT: Add to queue and keep status as 'available' for future matching
       await matchingService.addToQueue(user.id);
       await matchingService.updateMatchingStatus(user.id, "available");
-
       return {
         state: "found_partial",
         matches: [
           {
             id: matchingResult.matches[0].id,
             name: matchingResult.matches[0].name || "Compatible User",
-            compatibility: 70 + Math.floor(Math.random() * 15), // 70-85%
+            compatibility: 70 + Math.floor(Math.random() * 15),
             shared_goals: [userData.goal],
           },
         ],
       };
     } else {
-      // No matches found - add to queue
       await matchingService.addToQueue(user.id);
       const queuePosition = await matchingService.getQueuePosition(user.id);
       await matchingService.updateMatchingStatus(user.id, "available");
-
       return {
         state: "queued",
         queue_position: queuePosition,
@@ -149,16 +114,7 @@ const performRealMatching = async (
       };
     }
   } catch (error) {
-    console.error("Real matching error:");
-    console.error("Error type:", typeof error);
-    console.error(
-      "Error message:",
-      error instanceof Error ? error.message : "Unknown error"
-    );
-    console.error("Full error:", JSON.stringify(error, null, 2));
-    console.error("Error object:", error);
-
-    // Fallback to queue if there's a database error
+    console.error("Real matching error:", error);
     return {
       state: "queued",
       queue_position: Math.floor(Math.random() * 20) + 1,
@@ -171,19 +127,10 @@ const performRealMatching = async (
 const Matching: React.FC<MatchingProps> = ({
   userData,
   onComplete,
-  onModifyData,
   skipAnimations = false,
   goToResults = false,
 }) => {
   const { user } = useAuth();
-
-  // DEBUG: Log per vedere cosa riceve il componente
-  console.log("🎯 Matching component props:", {
-    userData,
-    skipAnimations,
-    goToResults,
-    user: user?.email,
-  });
 
   const [searchProgress, setSearchProgress] = useState(
     skipAnimations ? 100 : 0
@@ -194,58 +141,37 @@ const Matching: React.FC<MatchingProps> = ({
   const [matchingResult, setMatchingResult] = useState<MatchingResult | null>(
     null
   );
-  const [showResult, setShowResult] = useState(false); // Inizia sempre false, sarà impostato a true solo se necessario
-  const [hasStartedMatching, setHasStartedMatching] = useState(
-    // Auto-start solo se vengo dall'onboarding (goToResults=false)
-    // Sempre mostrare schermata scelta se vengo dalla dashboard (goToResults=true)
-    !goToResults
-  );
-
-  // Stato locale per toggle notification
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-
-  // Track if user chose to start matching from choice screen (to show animations)
+  const [showResult, setShowResult] = useState(false);
+  const [hasStartedMatching, setHasStartedMatching] = useState(!goToResults);
   const [userChoseToStartMatching, setUserChoseToStartMatching] =
     useState(false);
+  const [hasCheckedQueue, setHasCheckedQueue] = useState(false);
 
-  // Function to start matching process
-  const startMatching = () => {
+  const startMatching = useCallback(() => {
     setHasStartedMatching(true);
-    setUserChoseToStartMatching(true); // User actively chose to start matching
-    setSearchProgress(0); // Reset progress to show animation from start
-    setCurrentPhase("searching"); // Reset phase
-    setShowResult(false); // Hide any previous results
-  };
+    setUserChoseToStartMatching(true);
+    setSearchProgress(0);
+    setCurrentPhase("searching");
+    setShowResult(false);
+  }, []);
 
-  // Function to cancel matching and leave queue
-  const cancelMatching = async () => {
+  const cancelMatching = useCallback(async () => {
     if (!user) return;
-
     try {
-      // Remove from matching queue completely
       await matchingService.removeFromQueue(user.id);
-      // Update user matching status
       await matchingService.updateMatchingStatus(user.id, "available");
-      console.log("✅ Successfully cancelled matching");
-
-      // Navigate back to dashboard after successful cancellation
-      if (onComplete) {
-        onComplete();
-      }
+      onComplete();
     } catch (error) {
       console.error("Error cancelling matching:", error);
     }
-  };
+  }, [user, onComplete]);
 
-  // Check if user is already in queue when coming from dashboard
   useEffect(() => {
     const checkQueueStatus = async () => {
-      if (!user || !goToResults) return;
-
+      if (!user || !goToResults || hasCheckedQueue) return;
       try {
         const position = await matchingService.getQueuePosition(user.id);
         if (position > 0) {
-          // User is already in queue, skip choice screen and show queue status
           setHasStartedMatching(true);
           setMatchingResult({
             state: "queued",
@@ -255,59 +181,23 @@ const Matching: React.FC<MatchingProps> = ({
           });
           setShowResult(true);
         }
+        setHasCheckedQueue(true);
       } catch (error) {
         console.error("Error checking queue status:", error);
+        setHasCheckedQueue(true);
       }
     };
 
     checkQueueStatus();
-  }, [user, goToResults]);
+  }, [user, goToResults, hasCheckedQueue]);
 
   useEffect(() => {
-    // Only start matching if explicitly requested
-    if (!hasStartedMatching) {
-      return; // Don't start matching automatically
-    }
+    if (!hasStartedMatching || showResult) return;
 
     const runMatching = async () => {
-      // If goToResults is true, check current queue status first
-      if (goToResults) {
-        // Get current queue status directly
-        const getCurrentStatus = async () => {
-          if (!user) return false;
+      if (matchingResult?.state === "queued") return;
 
-          try {
-            const position = await matchingService.getQueuePosition(user.id);
-            if (position > 0) {
-              // User is in queue, show queue status
-              setMatchingResult({
-                state: "queued",
-                queue_position: position,
-                estimated_wait_hours: 24 + Math.floor(Math.random() * 48),
-                flexible_criteria: ["schedule_flexibility", "age_range"],
-              });
-              setShowResult(true);
-              return true; // Found queue status, skip normal matching
-            }
-            return false; // No queue status, continue to normal matching
-          } catch (error) {
-            console.error("Error getting queue status:", error);
-            return false; // Error, continue to normal matching
-          }
-        };
-
-        const shouldSkipMatching = await getCurrentStatus();
-        if (shouldSkipMatching) {
-          return; // Skip normal matching process
-        }
-        // If no queue status found, continue to normal matching process below
-      }
-
-      // Normal matching process
       const matchingPromise = performRealMatching(userData);
-
-      // Skip animations only if explicitly requested AND user didn't start matching from choice screen
-      // If user chose "Use Current Profile & Start Matching", show animations even if skipAnimations=true
       const shouldSkipAnimations = skipAnimations && !userChoseToStartMatching;
 
       if (shouldSkipAnimations) {
@@ -319,75 +209,63 @@ const Matching: React.FC<MatchingProps> = ({
         return;
       }
 
-      // Animate search progress
       const interval = setInterval(() => {
         setSearchProgress((prev) => {
           if (prev < 100) {
-            // Dynamic progress speed based on phase
             const increment =
               currentPhase === "searching"
                 ? 1.5
                 : currentPhase === "analyzing"
                 ? 0.8
                 : 2.0;
-
             const newProgress = Math.min(prev + increment, 100);
 
-            // Update phases based on progress
             if (newProgress > 30 && currentPhase === "searching") {
               setCurrentPhase("analyzing");
             } else if (newProgress > 70 && currentPhase === "analyzing") {
               setCurrentPhase("finalizing");
             }
-
             return newProgress;
           }
-
           return prev;
         });
       }, 150);
 
-      // Handle matching result
-      matchingPromise
-        .then(async (result) => {
-          console.log("🎯 Matching completed with result:", result);
-          setMatchingResult(result);
-          setShowResult(true);
-          clearInterval(interval);
-        })
-        .catch((error) => {
-          console.error("❌ Matching failed with error:", error);
-          // Set a fallback result in case of error
-          setMatchingResult({
-            state: "queued",
-            queue_position: 1,
-            estimated_wait_hours: 24,
-            flexible_criteria: ["error_fallback"],
-          });
-          setShowResult(true);
-          clearInterval(interval);
-        });
-
-      return () => {
+      try {
+        const result = await matchingPromise;
+        setMatchingResult(result);
+        setShowResult(true);
         clearInterval(interval);
-      };
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      } catch (error) {
+        setMatchingResult({
+          state: "queued",
+          queue_position: 1,
+          estimated_wait_hours: 24,
+          flexible_criteria: ["error_fallback"],
+        });
+        setShowResult(true);
+        clearInterval(interval);
+      }
     };
 
     runMatching();
   }, [
     userData,
-    onComplete,
     currentPhase,
     goToResults,
     skipAnimations,
     user,
     hasStartedMatching,
     userChoseToStartMatching,
+    matchingResult,
+    cancelMatching,
+    onComplete,
+    showResult,
   ]);
 
   const getPhaseMessage = () => {
     if (showResult) return "Match complete!";
-
     switch (currentPhase) {
       case "searching":
         return `Searching Trinity database... ${Math.round(searchProgress)}%`;
@@ -419,7 +297,6 @@ const Matching: React.FC<MatchingProps> = ({
                 partners
               </p>
             </div>
-
             <div className="space-y-4">
               {matchingResult.matches?.map((match) => (
                 <div
@@ -442,7 +319,6 @@ const Matching: React.FC<MatchingProps> = ({
             </div>
           </div>
         );
-
       case "found_partial":
         return (
           <div className="space-y-6">
@@ -457,7 +333,6 @@ const Matching: React.FC<MatchingProps> = ({
                 We found some potential partners. Looking for better matches...
               </p>
             </div>
-
             {matchingResult.matches?.map((match) => (
               <div
                 key={match.id}
@@ -476,7 +351,6 @@ const Matching: React.FC<MatchingProps> = ({
                 </p>
               </div>
             ))}
-
             <div className="bg-blue-50 p-4 rounded-2xl border border-blue-200">
               <p className="text-blue-700 font-medium">
                 🔍 Still searching for your perfect match...
@@ -487,25 +361,6 @@ const Matching: React.FC<MatchingProps> = ({
             </div>
 
             <button
-              onClick={() => setNotificationsEnabled((prev) => !prev)}
-              className={`w-full py-4 px-6 font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 ${
-                notificationsEnabled
-                  ? "bg-gradient-to-r from-green-500 to-green-600 text-white"
-                  : "bg-gradient-to-r from-gray-400 to-gray-500 text-gray-800"
-              }`}
-            >
-              <span className="flex items-center justify-center">
-                <span className="text-2xl mr-3">
-                  {notificationsEnabled ? "✅" : "🔔"}
-                </span>
-                {notificationsEnabled
-                  ? "Notifications Enabled"
-                  : "Enable Notifications"}
-              </span>
-            </button>
-
-            {/* Cancel Matching Button */}
-            <button
               onClick={cancelMatching}
               className="w-full py-4 px-6 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
             >
@@ -514,8 +369,6 @@ const Matching: React.FC<MatchingProps> = ({
                 Cancel Queue Request
               </span>
             </button>
-
-            {/* 📱 Platform-specific notification info */}
             <div className="mt-4 p-4 bg-blue-50 rounded-2xl border border-blue-200">
               <p className="text-blue-700 text-sm text-center">
                 📱 Notifications will keep you updated about your matching
@@ -524,7 +377,6 @@ const Matching: React.FC<MatchingProps> = ({
             </div>
           </div>
         );
-
       case "queued":
         return (
           <div className="space-y-6">
@@ -539,7 +391,6 @@ const Matching: React.FC<MatchingProps> = ({
                 No immediate matches, but don't worry - we're working on it
               </p>
             </div>
-
             <div className="text-center mb-6">
               <p className="text-2xl font-bold text-blue-600 mb-2">
                 Queue Position
@@ -548,7 +399,6 @@ const Matching: React.FC<MatchingProps> = ({
                 #{matchingResult.queue_position}
               </div>
             </div>
-
             <div className="space-y-4">
               <div className="bg-blue-50 p-4 rounded-2xl border border-blue-200">
                 <p className="text-blue-700 font-medium">
@@ -559,7 +409,6 @@ const Matching: React.FC<MatchingProps> = ({
                   More users join daily - your match is coming!
                 </p>
               </div>
-
               {matchingResult.flexible_criteria &&
                 matchingResult.flexible_criteria.length > 0 && (
                   <div className="bg-purple-50 p-4 rounded-2xl border border-purple-200">
@@ -574,25 +423,6 @@ const Matching: React.FC<MatchingProps> = ({
             </div>
 
             <button
-              onClick={() => setNotificationsEnabled((prev) => !prev)}
-              className={`w-full py-4 px-6 font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 ${
-                notificationsEnabled
-                  ? "bg-gradient-to-r from-green-500 to-green-600 text-white"
-                  : "bg-gradient-to-r from-gray-400 to-gray-500 text-gray-800"
-              }`}
-            >
-              <span className="flex items-center justify-center">
-                <span className="text-2xl mr-3">
-                  {notificationsEnabled ? "✅" : "🔔"}
-                </span>
-                {notificationsEnabled
-                  ? "Notifications Enabled"
-                  : "Enable Notifications"}
-              </span>
-            </button>
-
-            {/* Cancel Matching Button */}
-            <button
               onClick={cancelMatching}
               className="w-full py-4 px-6 bg-gradient-to-r from-red-500 to-red-600 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
             >
@@ -601,8 +431,6 @@ const Matching: React.FC<MatchingProps> = ({
                 Cancel Queue Request
               </span>
             </button>
-
-            {/* 📱 Platform-specific notification info */}
             <div className="mt-4 p-4 bg-blue-50 rounded-2xl border border-blue-200">
               <p className="text-blue-700 text-sm text-center">
                 📱 Notifications will keep you updated about your matching
@@ -611,7 +439,6 @@ const Matching: React.FC<MatchingProps> = ({
             </div>
           </div>
         );
-
       default:
         return (
           <div className="text-center">
@@ -623,28 +450,11 @@ const Matching: React.FC<MatchingProps> = ({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-500 via-pink-600 to-orange-500 flex items-center justify-center p-4 animate-gradient">
-      {/* User Menu - Top Right */}
-      <div className="absolute top-4 right-4 z-20">
-        <UserMenu variant="dark" />
-      </div>
-
       <div className="w-full max-w-2xl">
         <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8 md:p-12 relative overflow-hidden">
-          {/* Gradient overlay for depth */}
           <div className="absolute inset-0 bg-gradient-to-br from-rose-50/20 via-pink-50/10 to-orange-50/20 rounded-3xl pointer-events-none"></div>
-
           <div className="relative z-10 text-center space-y-8">
-            {(() => {
-              console.log("🎯 Matching render state:", {
-                hasStartedMatching,
-                showResult,
-                matchingResult: matchingResult?.state,
-                userData,
-              });
-              return null;
-            })()}
             {!hasStartedMatching ? (
-              // Initial screen - user can choose to start matching
               <>
                 <div className="space-y-4">
                   <div className="w-20 h-20 bg-gradient-to-br from-pink-400 to-rose-500 rounded-full flex items-center justify-center mx-auto">
@@ -658,7 +468,6 @@ const Matching: React.FC<MatchingProps> = ({
                     share your goals!
                   </p>
                 </div>
-
                 <div className="space-y-3">
                   <button
                     onClick={startMatching}
@@ -666,22 +475,6 @@ const Matching: React.FC<MatchingProps> = ({
                   >
                     🚀 Use Current Profile & Start Matching
                   </button>
-
-                  <button
-                    onClick={() => {
-                      // Go back to onboarding to change data
-                      if (onModifyData) {
-                        onModifyData();
-                      } else {
-                        // Fallback to dashboard if onModifyData is not provided
-                        onComplete();
-                      }
-                    }}
-                    className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold py-3 px-8 rounded-2xl transition-all duration-300"
-                  >
-                    ✏️ Modify My Data & Match
-                  </button>
-
                   <button
                     onClick={onComplete}
                     className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-8 rounded-2xl transition-all duration-300"
@@ -689,7 +482,6 @@ const Matching: React.FC<MatchingProps> = ({
                     ← Back to Dashboard
                   </button>
                 </div>
-
                 <div className="text-sm text-gray-500 bg-gray-50 rounded-xl p-4">
                   <p className="font-medium mb-2">Your Profile:</p>
                   <div className="space-y-1 text-left">
@@ -701,12 +493,9 @@ const Matching: React.FC<MatchingProps> = ({
                 </div>
               </>
             ) : (
-              // Matching process screens
               <>
-                {/* Conditional Rendering: Matching Process or Results */}
                 {!showResult ? (
                   <>
-                    {/* Header */}
                     <div className="mb-12 animate-fade-in-up">
                       <div className="w-20 h-20 bg-gradient-to-br from-purple-600 via-pink-600 to-red-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg animate-pulse-glow">
                         <span className="text-4xl animate-bounce-gentle">
@@ -721,8 +510,6 @@ const Matching: React.FC<MatchingProps> = ({
                         your preferences
                       </p>
                     </div>
-
-                    {/* Progress Bar */}
                     <div className="mb-8 animate-slide-in-right animation-delay-100">
                       <div className="w-full bg-gray-200 rounded-full h-6 mb-4 relative overflow-hidden shadow-inner">
                         <div
@@ -737,8 +524,6 @@ const Matching: React.FC<MatchingProps> = ({
                         {getPhaseMessage()}
                       </p>
                     </div>
-
-                    {/* Matching Criteria */}
                     <div className="mb-8 text-left animate-slide-in-left animation-delay-200">
                       <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
                         <span className="text-2xl mr-3 animate-bounce-subtle">
@@ -763,7 +548,7 @@ const Matching: React.FC<MatchingProps> = ({
                         ].map((item, index) => (
                           <div
                             key={index}
-                            className={`p-4 rounded-2xl bg-gradient-to-br from-white/80 to-gray-50/80 border border-gray-200/50 shadow-sm hover:shadow-md transition-all duration-300 animate-slide-in-up`}
+                            className="p-4 rounded-2xl bg-gradient-to-br from-white/80 to-gray-50/80 border border-gray-200/50 shadow-sm hover:shadow-md transition-all duration-300 animate-slide-in-up"
                             style={{ animationDelay: `${300 + index * 100}ms` }}
                           >
                             <span className="text-2xl block mb-2 animate-pulse-subtle">
@@ -781,8 +566,6 @@ const Matching: React.FC<MatchingProps> = ({
                         ))}
                       </div>
                     </div>
-
-                    {/* Status */}
                     <div className="mb-8 space-y-4 animate-fade-in animation-delay-700">
                       <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200">
                         <p className="text-gray-700 font-medium flex items-center justify-center">
@@ -801,8 +584,6 @@ const Matching: React.FC<MatchingProps> = ({
                         </p>
                       </div>
                     </div>
-
-                    {/* Learn More */}
                     <div className="text-center mb-6 animate-fade-in animation-delay-900">
                       <p className="text-gray-600 mb-3 flex items-center justify-center">
                         <span className="text-xl mr-2 animate-bounce-subtle">
@@ -816,26 +597,17 @@ const Matching: React.FC<MatchingProps> = ({
                     </div>
                   </>
                 ) : (
-                  /* Results Display */
                   <div className="animate-fade-in">{getResultContent()}</div>
                 )}
               </>
             )}
 
-            {/* Go to Dashboard Button - only show when matching is complete or queued */}
-            {matchingResult &&
-              (matchingResult.state === "matched" ||
-                matchingResult.state === "queued" ||
-                matchingResult.state === "found_partial") && (
-                <div className="animate-fade-in animation-delay-1000">
-                  <button
-                    onClick={onComplete}
-                    className="w-full py-4 px-8 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl hover:from-amber-600 hover:to-orange-600 hover:scale-102 active:scale-98 transition-all duration-200 font-bold text-lg shadow-lg"
-                  >
-                    Continue to Dashboard →
-                  </button>
-                </div>
-              )}
+            <button
+              onClick={onComplete}
+              className="w-full py-4 px-8 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl hover:from-amber-600 hover:to-orange-600 hover:scale-102 active:scale-98 transition-all duration-200 font-bold text-lg shadow-lg"
+            >
+              Continue to Dashboard →
+            </button>
           </div>
         </div>
       </div>
