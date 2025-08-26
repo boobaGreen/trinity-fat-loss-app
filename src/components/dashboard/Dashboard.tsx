@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { dashboardService } from "../../lib/supabase";
 import { UserMenu } from "../common/UserMenu";
+import { DailyCheckIn } from "../checkin/DailyCheckIn";
+import { WeeklyCheckIn } from "../checkin/WeeklyCheckIn";
 
 interface TrioMember {
   id: string;
@@ -51,7 +53,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
     queue?: QueueData | null;
   }>({ status: "loading" });
 
-  // Recupera lo stato reale dell'utente
+  const [showWeeklyCheckIn, setShowWeeklyCheckIn] = useState(false);
+  const [dailyProgress, setDailyProgress] = useState({
+    completed: 0,
+    total: 0,
+    percentage: 0,
+  });
   useEffect(() => {
     const fetchUserStatus = async () => {
       if (!user) return;
@@ -68,14 +75,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
     fetchUserStatus();
   }, [user]);
 
+  const handleDailyTasksUpdated = (completed: number, total: number) => {
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+    setDailyProgress({
+      completed,
+      total,
+      percentage,
+    });
+  };
+
   const goToMatchingStatus = () => {
-    // Use callback to go to matching with special state
     if (onGoToMatching) {
       onGoToMatching();
     }
   };
 
-  // Mock data per ora - poi verrà dal database
   const mockData = {
     trioName: "The Transformers",
     members: ["Sarah", userData.name, "Elena"],
@@ -122,7 +136,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-100">
-      {/* Header */}
       <div className="bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-xl">
         <div className="px-6 py-8">
           <div className="flex justify-between items-start mb-6">
@@ -137,7 +150,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <UserMenu variant="dark" />
           </div>
 
-          {/* Status dinamico basato su stato reale */}
           {userStatus.status === "loading" && (
             <div className="bg-blue-500/20 backdrop-blur-sm rounded-xl p-4 mb-4 border border-blue-400/30">
               <div className="text-center">
@@ -148,7 +160,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           )}
 
-          {/* Utente in CODA */}
           {userStatus.status === "in_queue" && userStatus.queue && (
             <div className="bg-amber-500/20 backdrop-blur-sm rounded-xl p-4 mb-4 border border-amber-400/30">
               <div className="flex items-center justify-between">
@@ -174,7 +185,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           )}
 
-          {/* Utente in TRIO */}
           {userStatus.status === "in_trio" && userStatus.trio && (
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-4">
               <h2 className="font-semibold mb-2 text-white">
@@ -196,12 +206,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           )}
 
-          {/* Utente SENZA GRUPPO */}
           {userStatus.status === "no_group" && (
             <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-sm rounded-xl p-6 mb-4 border border-green-400/30">
               <div className="text-center">
                 <h2 className="font-bold text-white text-xl mb-3">
-                  � Inizia il tuo percorso Trinity!
+                  🚀 Inizia il tuo percorso Trinity!
                 </h2>
                 <p className="text-green-100 mb-4">
                   Non fai ancora parte di un gruppo. Completa il tuo profilo e
@@ -219,64 +228,34 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* Main Content - Solo per utenti in trio */}
       {userStatus.status === "in_trio" && (
         <div className="px-6 py-6 space-y-6">
-          {/* Progress Summary */}
           <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold">
-                ⭐ Today's Progress: {mockData.completedTasks}/
-                {mockData.totalTasks}
+                ⭐ Today's Progress: {dailyProgress.completed}/
+                {dailyProgress.total}
               </h3>
               <span className="text-2xl animate-pulse">✨</span>
             </div>
 
-            {/* Progress Bar */}
             <div className="mb-6">
               <div className="bg-gray-200 rounded-full h-3 mb-2">
                 <div
                   className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500 shadow-md"
-                  style={{ width: `${mockData.completionPercentage}%` }}
+                  style={{ width: `${dailyProgress.percentage}%` }}
                 />
               </div>
               <p className="text-sm text-gray-600 text-center">
-                {mockData.completionPercentage}% Complete
+                {dailyProgress.percentage}% Complete
               </p>
             </div>
           </div>
 
-          {/* Daily Tasks */}
           <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
-            <h3 className="text-lg font-semibold mb-4">📋 Daily Tasks</h3>
-            <div className="space-y-3">
-              {mockData.tasks.map((task, index) => (
-                <div key={index} className="flex items-center space-x-3">
-                  <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center text-sm shadow-sm ${
-                      task.completed
-                        ? "bg-gradient-to-br from-green-400 to-green-500 text-white"
-                        : "bg-gray-200/80 text-gray-400"
-                    }`}
-                  >
-                    {task.completed ? "✅" : "❌"}
-                  </div>
-                  <div className="flex items-center space-x-2 flex-1">
-                    <span className="text-lg">{task.emoji}</span>
-                    <span
-                      className={
-                        task.completed ? "text-gray-900" : "text-gray-500"
-                      }
-                    >
-                      {task.name}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <DailyCheckIn onTasksUpdated={handleDailyTasksUpdated} />
           </div>
 
-          {/* Trio Chat Preview */}
           <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
             <h3 className="text-lg font-semibold mb-4">💬 Trio Chat Preview</h3>
             <div className="space-y-3">
@@ -300,7 +279,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
           </div>
 
-          {/* Next Video Call */}
           <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-white/20">
             <h3 className="text-lg font-semibold mb-4">📹 Next Video Call</h3>
             <div className="flex items-center justify-between">
@@ -320,7 +298,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          {/* Recent Achievement */}
           <div className="bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 text-white rounded-xl p-6 shadow-lg border border-white/20 relative overflow-hidden">
             <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
             <div className="relative z-10">
@@ -341,8 +318,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="space-y-4">
+            <button
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-600 text-white py-4 rounded-xl font-semibold hover:from-purple-600 hover:to-pink-700 transition-all duration-200 shadow-lg backdrop-blur-sm border border-white/20"
+              onClick={() => setShowWeeklyCheckIn(true)}
+            >
+              📊 Complete Weekly Check-In
+            </button>
+
             <button className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 rounded-xl font-semibold hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-lg backdrop-blur-sm border border-white/20">
               📊 View Full Progress
             </button>
@@ -351,7 +334,6 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
           </div>
 
-          {/* User Info Summary (for testing) */}
           <div className="bg-white/70 backdrop-blur-sm rounded-xl p-4 text-sm text-gray-700 shadow-md border border-white/30">
             <h4 className="font-medium mb-2 text-gray-800">User Summary:</h4>
             <div>👤 Name: {userData.name}</div>
@@ -361,10 +343,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <div>🎂 Age: {userData.age}</div>
             <div>📧 Email: {user?.email}</div>
           </div>
+
+          {showWeeklyCheckIn && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+              <div className="max-h-[90vh] overflow-auto w-full max-w-2xl">
+                <WeeklyCheckIn onClose={() => setShowWeeklyCheckIn(false)} />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Contenuto per utenti in coda o senza gruppo */}
       {(userStatus.status === "in_queue" ||
         userStatus.status === "no_group") && (
         <div className="px-6 py-6 space-y-6">
