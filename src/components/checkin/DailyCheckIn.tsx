@@ -22,7 +22,7 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
   date = new Date(),
 }) => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -88,11 +88,6 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
             name = "Steps";
             emoji = "👟";
             description = "Raggiungi min. 8000 passi";
-            break;
-          case "cardio":
-            name = "Cardio";
-            emoji = "❤️";
-            description = "Completa min. 20 min di cardio";
             break;
           default:
             name = task.task_type;
@@ -198,20 +193,6 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
         target_value: 8000,
         actual_value: null,
         target_unit: "steps",
-        notes: null,
-        reminder_sent: false,
-        celebration_notification_sent: false,
-      },
-      {
-        user_id: userId,
-        trio_id: trioId,
-        task_date: dateString,
-        task_type: "cardio",
-        completed: false,
-        completed_at: null,
-        target_value: 20,
-        actual_value: null,
-        target_unit: "min",
         notes: null,
         reminder_sent: false,
         celebration_notification_sent: false,
@@ -334,23 +315,6 @@ export const DailyCheckIn: React.FC<DailyCheckInProps> = ({
           name: "Steps",
           emoji: "👟",
           description: "Raggiungi min. 8000 passi",
-        },
-        {
-          id: "mock-7",
-          user_id: user?.id || "mock-user",
-          trio_id: "mock-trio",
-          task_date: formattedDateForDB,
-          task_type: "cardio",
-          completed: false,
-          completed_at: null,
-          target_value: 20,
-          actual_value: null,
-          target_unit: "min",
-          notes: null,
-          modified_at: new Date().toISOString(),
-          name: "Cardio",
-          emoji: "❤️",
-          description: "Completa min. 20 min di cardio",
         },
       ];
     };
